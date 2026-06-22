@@ -14,6 +14,7 @@ return [
             'permissions' => [
                 'see-app-tippspiel',
             ],
+            'all_users' => true,
         ],
     ],
 ];
