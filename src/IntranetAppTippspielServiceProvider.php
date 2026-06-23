@@ -9,6 +9,7 @@ use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
 use Hwkdo\IntranetAppTippspiel\Enums\AiNewsProvider;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielSettings;
 use Hwkdo\IntranetAppTippspiel\Providers\FootballDataOrgProvider;
+use Illuminate\Console\Scheduling\Schedule;
 use Livewire\Livewire;
 use Livewire\Volt\Volt;
 use Spatie\LaravelPackageTools\Package;
@@ -74,6 +75,8 @@ class IntranetAppTippspielServiceProvider extends PackageServiceProvider
             Volt::mount(__DIR__.'/../resources/views/livewire');
         });
 
-        $this->loadRoutesFrom(__DIR__.'/../routes/console.php');
+        $this->app->resolving(Schedule::class, function (): void {
+            require __DIR__.'/../routes/console.php';
+        });
     }
 }
