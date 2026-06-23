@@ -7,8 +7,8 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <flux:heading size="lg">{{ $data['season']->name }}</flux:heading>
-                    @if ($data['currentMatchday'])
-                        <flux:subheading>Spieltag {{ $data['currentMatchday'] }}</flux:subheading>
+                    @if ($data['currentRoundLabel'])
+                        <flux:subheading>{{ $data['currentRoundLabel'] }}</flux:subheading>
                     @endif
                 </div>
                 <div class="flex gap-2">
@@ -28,11 +28,11 @@
                 <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
                     <div class="flex items-center gap-2">
                         <flux:icon name="exclamation-triangle" class="size-4 text-amber-600 dark:text-red-400" />
-                        <span class="text-sm font-medium text-amber-800 dark:text-red-400">
-                            Noch nicht getippt:
-                            {{ $data['nextUntipped']->home_team_name }} – {{ $data['nextUntipped']->away_team_name }}
-                            ({{ $data['nextUntipped']->kickoff_at?->format('d.m. H:i') }} Uhr)
-                        </span>
+                    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-medium text-amber-800 dark:text-red-400">
+                        <span>Noch nicht getippt:</span>
+                        <x-intranet-app-tippspiel::match-fixture :match="$data['nextUntipped']" size="sm" />
+                        <span>({{ $data['nextUntipped']->kickoff_at?->format('d.m. H:i') }} Uhr)</span>
+                    </div>
                         <flux:button size="xs" variant="primary" href="{{ route('apps.tippspiel.tippen', $data['season']) }}" wire:navigate class="ml-auto shrink-0">
                             Jetzt tippen
                         </flux:button>
@@ -101,14 +101,10 @@
                             @php $match = $tip->match; @endphp
                             <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2 dark:border-zinc-800">
                                 <div class="min-w-0 flex-1">
-                                    <div class="text-sm font-medium truncate">
-                                        {{ $match->home_team_name }} – {{ $match->away_team_name }}
-                                    </div>
+                                    <x-intranet-app-tippspiel::match-fixture :match="$match" size="sm" />
                                     <div class="text-xs text-zinc-500">
                                         {{ $match->kickoff_at?->format('D d.m. H:i') ?? '—' }} Uhr
-                                        @if ($match->matchday)
-                                            · Spieltag {{ $match->matchday }}
-                                        @endif
+                                        · {{ $match->roundLabel() }}
                                     </div>
                                 </div>
                                 <flux:badge color="blue" size="sm" class="shrink-0">

@@ -34,15 +34,26 @@ class FootballDataOrgProvider implements FootballDataProviderInterface
         return $response->json('seasons', []);
     }
 
-    public function fetchMatches(Season $season): array
+    public function fetchMatches(Season $season, ?string $stage = null): array
     {
         $year = $season->season_year;
+        $query = ['season' => $year];
+
+        if ($stage !== null) {
+            $query['stage'] = $stage;
+        }
+
         $response = $this->get(
             "/competitions/{$season->competition_code}/matches",
-            ['season' => $year]
+            $query
         );
 
         return $response->json('matches', []);
+    }
+
+    public function fetchStageMatches(Season $season, string $stage): array
+    {
+        return $this->fetchMatches($season, $stage);
     }
 
     public function fetchMatchdayResults(Season $season, int $matchday): array

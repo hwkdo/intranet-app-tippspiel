@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel;
 
-use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
+use Flux\Flux;
 use Hwkdo\IntranetAppTippspiel\Models\Participant;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
@@ -20,7 +20,7 @@ class Tippen extends Component
 {
     public Season $season;
 
-    public ?int $selectedMatchday = null;
+    public ?string $selectedRound = null;
 
     /** @var array<int, array{home: string, away: string}> */
     public array $tips = [];
@@ -28,18 +28,18 @@ class Tippen extends Component
     public function mount(Season $season): void
     {
         $this->season = $season;
-        $this->selectedMatchday = $season->currentMatchday();
+        $this->selectedRound = $season->defaultRoundKey(tippableOnly: true);
         $this->loadTips();
     }
 
-    public function updatedSelectedMatchday(): void
+    public function updatedSelectedRound(): void
     {
         $this->loadTips();
     }
 
     private function loadTips(): void
     {
-        if ($this->selectedMatchday === null) {
+        if ($this->selectedRound === null) {
             return;
         }
 
@@ -48,8 +48,10 @@ class Tippen extends Component
             ->where('user_id', $userId)
             ->first();
 
-        $matches = TippspielMatch::where('season_id', $this->season->id)
-            ->where('matchday', $this->selectedMatchday)
+        $matches = TippspielMatch::query()
+            ->where('season_id', $this->season->id)
+            ->forRoundKey($this->selectedRound)
+            ->withKnownTeams()
             ->orderBy('kickoff_at')
             ->get();
 
@@ -87,8 +89,8 @@ class Tippen extends Component
                 continue;
             }
 
-            // Tipps nach Anpfiff oder für laufende/beendete Spiele sperren
-            if (! $match->isTippable() || $match->kickoffHasPassed()) {
+            // Tipps nach Anpfiff, ohne feststehende Paarung oder für laufende/beendete Spiele sperren
+            if (! $match->canStillBeTipped()) {
                 $skipped++;
                 continue;
             }
@@ -111,30 +113,46 @@ class Tippen extends Component
             $saved++;
         }
 
+        if ($saved === 0 && $skipped === 0) {
+            Flux::toast(
+                heading: 'Keine Tipps gespeichert',
+                text: 'Bitte für mindestens ein Spiel ein Ergebnis eintragen.',
+                variant: 'warning',
+            );
+
+            return;
+        }
+
         if ($skipped > 0) {
-            $this->dispatch('flash', type: 'warning', message: "{$saved} Tipp(s) gespeichert. {$skipped} Spiel(e) bereits gestartet – Tipps nicht möglich.");
+            Flux::toast(
+                heading: 'Tipps teilweise gespeichert',
+                text: "{$saved} Tipp(s) gespeichert. {$skipped} Spiel(e) bereits gestartet – Tipps nicht möglich.",
+                variant: 'warning',
+            );
         } else {
-            $this->dispatch('flash', type: 'success', message: "{$saved} Tipp(s) erfolgreich gespeichert.");
+            Flux::toast(
+                heading: 'Tipps gespeichert',
+                text: "{$saved} Tipp(s) erfolgreich gespeichert.",
+                variant: 'success',
+            );
         }
     }
 
     public function render(): View
     {
-        $matchdays = TippspielMatch::where('season_id', $this->season->id)
-            ->whereNotNull('matchday')
-            ->distinct()
-            ->orderBy('matchday')
-            ->pluck('matchday');
+        $rounds = $this->season->availableRounds(tippableOnly: true);
 
-        $matches = $this->selectedMatchday !== null
-            ? TippspielMatch::where('season_id', $this->season->id)
-                ->where('matchday', $this->selectedMatchday)
+        $matches = $this->selectedRound !== null
+            ? TippspielMatch::query()
+                ->where('season_id', $this->season->id)
+                ->forRoundKey($this->selectedRound)
+                ->withKnownTeams()
                 ->orderBy('kickoff_at')
                 ->get()
             : collect();
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.tippen', [
-            'matchdays' => $matchdays,
+            'rounds' => $rounds,
             'matches' => $matches,
         ]);
     }

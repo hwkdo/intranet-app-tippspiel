@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel;
 
-use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
 use Hwkdo\IntranetAppTippspiel\Models\Participant;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
@@ -29,7 +28,9 @@ class Dashboard extends Component
                 ->first();
 
             $leaderboard = $evaluationService->getLeaderboard($season);
-            $currentMatchday = $season->currentMatchday();
+            $currentRoundKey = $season->currentRoundKey();
+            $currentRoundLabel = $season->availableRounds()
+                ->firstWhere('key', $currentRoundKey)?->label;
             $nextUntipped = $participant ? $season->nextUntippedMatch($user->getAuthIdentifier()) : null;
             $upcomingTips = $participant
                 ? $this->upcomingTipsForParticipant($participant, $season)
@@ -40,7 +41,7 @@ class Dashboard extends Component
                 'isParticipant' => $participant !== null,
                 'participant' => $participant,
                 'leaderboard' => array_slice($leaderboard, 0, 5),
-                'currentMatchday' => $currentMatchday,
+                'currentRoundLabel' => $currentRoundLabel,
                 'nextUntipped' => $nextUntipped,
                 'upcomingTips' => $upcomingTips,
             ];
@@ -60,11 +61,7 @@ class Dashboard extends Component
             ->where('participant_id', $participant->id)
             ->whereHas('match', function ($query) use ($season) {
                 $query->where('season_id', $season->id)
-                    ->whereIn('status', [MatchStatus::Scheduled->value, MatchStatus::Timed->value])
-                    ->where(function ($query) {
-                        $query->whereNull('kickoff_at')
-                            ->orWhere('kickoff_at', '>=', now());
-                    });
+                    ->stillTippable();
             })
             ->with('match')
             ->get()

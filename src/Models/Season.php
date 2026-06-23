@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel\Models;
 
+use Hwkdo\IntranetAppTippspiel\Data\SeasonRound;
 use Hwkdo\IntranetAppTippspiel\Database\Factories\SeasonFactory;
+use Hwkdo\IntranetAppTippspiel\Enums\MatchStage;
 use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -42,6 +44,17 @@ class Season extends Model
 
     public function currentMatchday(): ?int
     {
+        $roundKey = $this->currentRoundKey();
+
+        if ($roundKey === null || ! str_starts_with($roundKey, 'md:')) {
+            return null;
+        }
+
+        return (int) substr($roundKey, 3);
+    }
+
+    public function currentRoundKey(): ?string
+    {
         $active = $this->matches()
             ->where(function ($q) {
                 $q->whereIn('status', [
@@ -54,22 +67,77 @@ class Season extends Model
             ->orderBy('kickoff_at')
             ->first();
 
-        if ($active) {
-            return $active->matchday;
+        if ($active !== null) {
+            return $active->roundKey();
         }
 
         $next = $this->matches()
-            ->whereIn('status', [MatchStatus::Scheduled->value, MatchStatus::Timed->value])
+            ->stillTippable()
             ->orderBy('kickoff_at')
             ->first();
 
-        return $next?->matchday;
+        return $next?->roundKey();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, SeasonRound>
+     */
+    public function availableRounds(bool $tippableOnly = false): \Illuminate\Support\Collection
+    {
+        $query = $this->matches();
+
+        if ($tippableOnly) {
+            $query->withKnownTeams();
+        }
+
+        $rounds = collect();
+
+        $matchdays = (clone $query)
+            ->whereNotNull('matchday')
+            ->distinct()
+            ->orderBy('matchday')
+            ->pluck('matchday');
+
+        foreach ($matchdays as $matchday) {
+            $rounds->push(new SeasonRound(
+                key: 'md:'.$matchday,
+                label: 'Spieltag '.$matchday,
+                sortOrder: (int) $matchday,
+            ));
+        }
+
+        $stages = (clone $query)
+            ->whereNull('matchday')
+            ->distinct()
+            ->pluck('stage');
+
+        foreach ($stages as $stage) {
+            if ($stage === null || $stage === '') {
+                continue;
+            }
+
+            $enum = MatchStage::tryFrom($stage);
+
+            $rounds->push(new SeasonRound(
+                key: 'stage:'.$stage,
+                label: MatchStage::labelFor($stage),
+                sortOrder: 1000 + ($enum?->sortOrder() ?? 999),
+            ));
+        }
+
+        return $rounds->sortBy('sortOrder')->values();
+    }
+
+    public function defaultRoundKey(bool $tippableOnly = false): ?string
+    {
+        return $this->currentRoundKey()
+            ?? $this->availableRounds($tippableOnly)->last()?->key;
     }
 
     public function nextUntippedMatch(int $userId): ?TippspielMatch
     {
         return $this->matches()
-            ->whereIn('status', [MatchStatus::Scheduled->value, MatchStatus::Timed->value])
+            ->stillTippable()
             ->whereDoesntHave('tips', function ($q) use ($userId) {
                 $q->whereHas('participant', fn ($p) => $p->where('user_id', $userId)->where('season_id', $this->id));
             })

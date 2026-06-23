@@ -2,19 +2,15 @@
 
 declare(strict_types=1);
 
-use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Schedule;
 
-/** @var Schedule $schedule */
-$schedule = App::make(Schedule::class);
-
-$schedule->command('tippspiel:sync-matches')
+Schedule::command('tippspiel:sync-matches')
     ->hourly()
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/tippspiel-sync.log'));
 
-$schedule->command('tippspiel:evaluate-tips')
+Schedule::command('tippspiel:evaluate-tips')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->runInBackground()

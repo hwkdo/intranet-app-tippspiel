@@ -5,10 +5,10 @@
     {{-- Spieltag-Auswahl --}}
     <div class="glass-card mb-4 p-4">
         <div class="flex items-center gap-3">
-            <flux:label>Spieltag</flux:label>
-            <flux:select wire:model.live="selectedMatchday" class="w-40">
-                @foreach ($matchdays as $matchday)
-                    <flux:select.option value="{{ $matchday }}">Spieltag {{ $matchday }}</flux:select.option>
+            <flux:label>Runde</flux:label>
+            <flux:select wire:model.live="selectedRound" class="w-56">
+                @foreach ($rounds as $round)
+                    <flux:select.option value="{{ $round->key }}">{{ $round->label }}</flux:select.option>
                 @endforeach
             </flux:select>
         </div>
@@ -20,7 +20,7 @@
             $myTip = $data['myTip'];
         @endphp
         <div class="glass-card mb-3 p-4">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <div class="flex w-full flex-col gap-3 md:flex-row md:items-center">
                 <div class="w-28 shrink-0 text-sm text-zinc-500">
                     {{ $match->kickoff_at?->format('D d.m. H:i') ?? '—' }}
                     <div class="mt-1">
@@ -34,9 +34,15 @@
                     </div>
                 </div>
 
-                <div class="flex flex-1 items-center justify-center gap-4">
-                    <span class="w-36 truncate text-right font-medium">{{ $match->home_team_name }}</span>
-                    <div class="flex items-center gap-2">
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                    <div class="flex min-w-0 flex-1 justify-end">
+                        <x-intranet-app-tippspiel::team
+                            :name="$match->home_team_name"
+                            :crest="$match->home_team_crest_url"
+                            side="home"
+                        />
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
                         {{-- Ergebnis --}}
                         <flux:badge
                             color="{{ $match->isFinished() ? 'green' : 'zinc' }}"
@@ -45,7 +51,13 @@
                             {{ $match->score_display }}
                         </flux:badge>
                     </div>
-                    <span class="w-36 truncate font-medium">{{ $match->away_team_name }}</span>
+                    <div class="flex min-w-0 flex-1">
+                        <x-intranet-app-tippspiel::team
+                            :name="$match->away_team_name"
+                            :crest="$match->away_team_crest_url"
+                            side="away"
+                        />
+                    </div>
                 </div>
 
                 {{-- Mein Tipp und Punkte --}}
@@ -75,7 +87,7 @@
         </div>
     @empty
         <div class="glass-card p-8 text-center">
-            <flux:text class="text-zinc-500">Kein Spieltag ausgewählt.</flux:text>
+            <flux:text class="text-zinc-500">Keine Runde ausgewählt.</flux:text>
         </div>
     @endforelse
 </x-intranet-app-tippspiel::tippspiel-layout>

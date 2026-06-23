@@ -31,7 +31,14 @@ interface FootballDataProviderInterface
      *     score: array{fullTime: array{home: int|null, away: int|null}}
      * }>
      */
-    public function fetchMatches(Season $season): array;
+    public function fetchMatches(Season $season, ?string $stage = null): array;
+
+    /**
+     * Gibt Spiele einer K.-o.-Phase zurück.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function fetchStageMatches(Season $season, string $stage): array;
 
     /**
      * Gibt die aktuellen Ergebnisse für die Spiele eines bestimmten Spieltages zurück.

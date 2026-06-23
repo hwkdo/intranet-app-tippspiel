@@ -48,31 +48,30 @@ class FootballDataSyncService
     public function syncCurrentMatchday(Season $season): int
     {
         $currentMatchday = $season->currentMatchday();
-
-        if ($currentMatchday === null) {
-            return 0;
-        }
-
         $synced = 0;
 
-        foreach (array_unique([$currentMatchday, $currentMatchday + 1]) as $matchday) {
-            $matches = $this->provider->fetchMatchdayResults($season, $matchday);
+        if ($currentMatchday !== null) {
+            foreach (array_unique([$currentMatchday, $currentMatchday + 1]) as $matchday) {
+                $matches = $this->provider->fetchMatchdayResults($season, $matchday);
 
-            DB::transaction(function () use ($season, $matches, &$synced) {
-                foreach ($matches as $matchData) {
-                    $status = MatchStatus::tryFrom($matchData['status'] ?? '') ?? MatchStatus::Scheduled;
+                DB::transaction(function () use ($season, $matches, &$synced) {
+                    foreach ($matches as $matchData) {
+                        $status = MatchStatus::tryFrom($matchData['status'] ?? '') ?? MatchStatus::Scheduled;
 
-                    // Bereits abgeschlossene und bereits als FINISHED gespeicherte Spiele nicht erneut verarbeiten
-                    $existing = TippspielMatch::where('external_id', $matchData['id'])->first();
-                    if ($existing && $existing->isFinished() && $status->isFinished()) {
-                        continue;
+                        // Bereits abgeschlossene und bereits als FINISHED gespeicherte Spiele nicht erneut verarbeiten
+                        $existing = TippspielMatch::where('external_id', $matchData['id'])->first();
+                        if ($existing && $existing->isFinished() && $status->isFinished()) {
+                            continue;
+                        }
+
+                        $this->upsertMatch($season, $matchData);
+                        $synced++;
                     }
-
-                    $this->upsertMatch($season, $matchData);
-                    $synced++;
-                }
-            });
+                });
+            }
         }
+
+        $synced += $this->syncOpenKnockoutStages($season);
 
         Log::info('Tippspiel: Spieltag-Sync abgeschlossen', [
             'season' => $season->name,
@@ -91,6 +90,8 @@ class FootballDataSyncService
     private function upsertMatch(Season $season, array $matchData): void
     {
         $fullTime = $matchData['score']['fullTime'] ?? [];
+        $homeTeam = $matchData['homeTeam'] ?? null;
+        $awayTeam = $matchData['awayTeam'] ?? null;
 
         TippspielMatch::updateOrCreate(
             ['external_id' => $matchData['id']],
@@ -99,10 +100,10 @@ class FootballDataSyncService
                 'matchday' => $matchData['matchday'] ?? null,
                 'stage' => $matchData['stage'] ?? 'REGULAR_SEASON',
                 'group' => $matchData['group'] ?? null,
-                'home_team_name' => $matchData['homeTeam']['name'] ?? 'Unbekannt',
-                'away_team_name' => $matchData['awayTeam']['name'] ?? 'Unbekannt',
-                'home_team_crest_url' => $matchData['homeTeam']['crest'] ?? null,
-                'away_team_crest_url' => $matchData['awayTeam']['crest'] ?? null,
+                'home_team_name' => $this->resolveTeamName($homeTeam),
+                'away_team_name' => $this->resolveTeamName($awayTeam),
+                'home_team_crest_url' => $homeTeam['crest'] ?? null,
+                'away_team_crest_url' => $awayTeam['crest'] ?? null,
                 'kickoff_at' => isset($matchData['utcDate']) ? new \DateTimeImmutable($matchData['utcDate']) : null,
                 'status' => $matchData['status'] ?? MatchStatus::Scheduled->value,
                 'home_score' => $fullTime['home'] ?? null,
@@ -110,5 +111,60 @@ class FootballDataSyncService
                 'last_synced_at' => now(),
             ]
         );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $team
+     */
+    private function resolveTeamName(?array $team): string
+    {
+        if (! TippspielMatch::teamDataIsKnown($team)) {
+            return 'Unbekannt';
+        }
+
+        $name = $team['name'] ?? null;
+
+        if ($name === null || trim((string) $name) === '') {
+            return 'Unbekannt';
+        }
+
+        return (string) $name;
+    }
+
+    private function syncOpenKnockoutStages(Season $season): int
+    {
+        $stages = TippspielMatch::query()
+            ->where('season_id', $season->id)
+            ->whereNull('matchday')
+            ->whereNotIn('status', [
+                MatchStatus::Finished->value,
+                MatchStatus::Awarded->value,
+                MatchStatus::Cancelled->value,
+            ])
+            ->distinct()
+            ->pluck('stage')
+            ->filter();
+
+        $synced = 0;
+
+        foreach ($stages as $stage) {
+            $matches = $this->provider->fetchStageMatches($season, (string) $stage);
+
+            DB::transaction(function () use ($season, $matches, &$synced) {
+                foreach ($matches as $matchData) {
+                    $status = MatchStatus::tryFrom($matchData['status'] ?? '') ?? MatchStatus::Scheduled;
+                    $existing = TippspielMatch::where('external_id', $matchData['id'])->first();
+
+                    if ($existing && $existing->isFinished() && $status->isFinished()) {
+                        continue;
+                    }
+
+                    $this->upsertMatch($season, $matchData);
+                    $synced++;
+                }
+            });
+        }
+
+        return $synced;
     }
 }

@@ -51,7 +51,7 @@ class NaechstenSpieltippenTaskProvider implements TaskProviderInterface
                 appName: IntranetAppTippspiel::app_name(),
                 appIcon: IntranetAppTippspiel::app_icon(),
                 description: $description,
-                badge: 'Spieltag '.($nextUntipped->matchday ?? ''),
+                badge: $nextUntipped->roundLabel(),
                 priority: 7,
             ));
         }

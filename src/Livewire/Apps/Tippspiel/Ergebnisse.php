@@ -19,22 +19,17 @@ class Ergebnisse extends Component
 {
     public Season $season;
 
-    public ?int $selectedMatchday = null;
+    public ?string $selectedRound = null;
 
     public function mount(Season $season): void
     {
         $this->season = $season;
-        $this->selectedMatchday = $season->currentMatchday()
-            ?? TippspielMatch::where('season_id', $season->id)->max('matchday');
+        $this->selectedRound = $season->defaultRoundKey(tippableOnly: false);
     }
 
     public function render(): View
     {
-        $matchdays = TippspielMatch::where('season_id', $this->season->id)
-            ->whereNotNull('matchday')
-            ->distinct()
-            ->orderBy('matchday')
-            ->pluck('matchday');
+        $rounds = $this->season->availableRounds(tippableOnly: false);
 
         $userId = auth()->id();
         $participant = Participant::where('season_id', $this->season->id)
@@ -42,9 +37,10 @@ class Ergebnisse extends Component
             ->first();
 
         $matches = collect();
-        if ($this->selectedMatchday !== null) {
-            $matches = TippspielMatch::where('season_id', $this->season->id)
-                ->where('matchday', $this->selectedMatchday)
+        if ($this->selectedRound !== null) {
+            $matches = TippspielMatch::query()
+                ->where('season_id', $this->season->id)
+                ->forRoundKey($this->selectedRound)
                 ->orderBy('kickoff_at')
                 ->get()
                 ->map(function (TippspielMatch $match) use ($participant) {
@@ -60,7 +56,7 @@ class Ergebnisse extends Component
         }
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.ergebnisse', [
-            'matchdays' => $matchdays,
+            'rounds' => $rounds,
             'matchesData' => $matches,
         ]);
     }
