@@ -12,10 +12,22 @@
 
     foreach (\Hwkdo\IntranetAppTippspiel\Models\Season::active() as $season) {
         $defaultNavItems[] = [
-            'label' => $season->name,
+            'label' => $season->name.' — Tippen',
             'href' => route('apps.tippspiel.tippen', $season),
             'icon' => 'trophy',
             'description' => 'Spiele tippen',
+        ];
+        $defaultNavItems[] = [
+            'label' => $season->name.' — Auswertungen',
+            'href' => route('apps.tippspiel.auswertungen', $season),
+            'icon' => 'chart-bar',
+            'description' => 'Tipps und Punkte pro Runde',
+        ];
+        $defaultNavItems[] = [
+            'label' => $season->name.' — Rangliste',
+            'href' => route('apps.tippspiel.rangliste', $season),
+            'icon' => 'list-bullet',
+            'description' => 'Gesamtrangliste',
         ];
     }
 

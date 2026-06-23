@@ -8,6 +8,7 @@ use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -167,5 +168,101 @@ class TipEvaluationService
                 ];
             })
             ->toArray();
+    }
+
+    /**
+     * @return array<int, array{rank: int, participant_id: int, user_id: int, user_name: string, round_points: int, tips_count: int, evaluated_count: int}>
+     */
+    public function getRoundLeaderboard(Season $season, string $roundKey): array
+    {
+        $matchIds = TippspielMatch::query()
+            ->where('season_id', $season->id)
+            ->forRoundKey($roundKey)
+            ->pluck('id');
+
+        if ($matchIds->isEmpty()) {
+            return [];
+        }
+
+        return $season->participants()
+            ->with([
+                'user',
+                'tips' => fn ($query) => $query->whereIn('match_id', $matchIds),
+            ])
+            ->get()
+            ->map(function ($participant) {
+                $roundTips = $participant->tips;
+                $roundPoints = (int) $roundTips->sum(fn (Tip $tip) => $tip->points_earned ?? 0);
+
+                return [
+                    'participant_id' => $participant->id,
+                    'user_id' => $participant->user_id,
+                    'user_name' => $participant->user?->name ?? 'Unbekannt',
+                    'round_points' => $roundPoints,
+                    'tips_count' => $roundTips->count(),
+                    'evaluated_count' => $roundTips->whereNotNull('points_earned')->count(),
+                ];
+            })
+            ->filter(fn (array $entry) => $entry['tips_count'] > 0)
+            ->sort(function (array $a, array $b) {
+                return $b['round_points'] <=> $a['round_points']
+                    ?: strcmp($a['user_name'], $b['user_name']);
+            })
+            ->values()
+            ->map(function (array $entry, int $index) {
+                $entry['rank'] = $index + 1;
+
+                return $entry;
+            })
+            ->toArray();
+    }
+
+    public function pointsBadgeColor(int $points, Season $season): string
+    {
+        return match ($points) {
+            $season->points_exact_result => 'green',
+            $season->points_correct_difference => 'blue',
+            $season->points_correct_tendency => 'yellow',
+            default => 'red',
+        };
+    }
+
+    /**
+     * @return Collection<int, array{round_key: string, round_label: string, match_count: int, finished_count: int, is_complete: bool, has_evaluations: bool, round_points_total: int}>
+     */
+    public function getRoundSummaries(Season $season): Collection
+    {
+        return $season->availableRounds(tippableOnly: false)
+            ->map(function ($round) use ($season) {
+                $matches = TippspielMatch::query()
+                    ->where('season_id', $season->id)
+                    ->forRoundKey($round->key)
+                    ->get();
+
+                $matchIds = $matches->pluck('id');
+                $finishedCount = $matches->filter(fn (TippspielMatch $match) => $match->isFinished())->count();
+
+                $roundPointsTotal = $matchIds->isEmpty()
+                    ? 0
+                    : (int) Tip::query()
+                        ->whereIn('match_id', $matchIds)
+                        ->whereNotNull('points_earned')
+                        ->sum('points_earned');
+
+                return [
+                    'round_key' => $round->key,
+                    'round_label' => $round->label,
+                    'match_count' => $matches->count(),
+                    'finished_count' => $finishedCount,
+                    'is_complete' => $matches->isNotEmpty() && $finishedCount === $matches->count(),
+                    'has_evaluations' => $matchIds->isNotEmpty() && Tip::query()
+                        ->whereIn('match_id', $matchIds)
+                        ->whereNotNull('points_earned')
+                        ->exists(),
+                    'round_points_total' => $roundPointsTotal,
+                ];
+            })
+            ->reverse()
+            ->values();
     }
 }

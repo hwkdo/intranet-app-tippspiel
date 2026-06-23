@@ -4,13 +4,25 @@
 >
     {{-- Spieltag-Auswahl --}}
     <div class="glass-card mb-4 p-4">
-        <div class="flex items-center gap-3">
-            <flux:label>Runde</flux:label>
-            <flux:select wire:model.live="selectedRound" class="w-56">
-                @foreach ($rounds as $round)
-                    <flux:select.option value="{{ $round->key }}">{{ $round->label }}</flux:select.option>
-                @endforeach
-            </flux:select>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <flux:label>Runde</flux:label>
+                <flux:select wire:model.live="selectedRound" class="w-56">
+                    @foreach ($rounds as $round)
+                        <flux:select.option value="{{ $round->key }}">{{ $round->label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </div>
+            @if ($selectedRound)
+                <flux:button
+                    size="sm"
+                    variant="ghost"
+                    href="{{ \Hwkdo\IntranetAppTippspiel\Support\RoundKey::route($season, $selectedRound) }}"
+                    wire:navigate
+                >
+                    Auswertung aller Tipps →
+                </flux:button>
+            @endif
         </div>
     </div>
 
@@ -65,15 +77,11 @@
                     @if ($myTip)
                         <div class="text-sm text-zinc-500">Mein Tipp: <span class="font-medium text-zinc-900 dark:text-white">{{ $myTip->score_display }}</span></div>
                         @if ($myTip->points_earned !== null)
-                            @php
-                                $color = match($myTip->points_earned) {
-                                    3 => 'green',
-                                    2 => 'blue',
-                                    1 => 'yellow',
-                                    default => 'red',
-                                };
-                            @endphp
-                            <flux:badge color="{{ $color }}" size="sm" class="mt-1">
+                            <flux:badge
+                                color="{{ app(\Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService::class)->pointsBadgeColor($myTip->points_earned, $season) }}"
+                                size="sm"
+                                class="mt-1"
+                            >
                                 {{ $myTip->points_earned }} {{ $myTip->points_earned === 1 ? 'Punkt' : 'Punkte' }}
                             </flux:badge>
                         @elseif ($match->isFinished())

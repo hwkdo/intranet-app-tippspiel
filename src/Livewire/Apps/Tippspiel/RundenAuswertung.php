@@ -1,0 +1,79 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel;
+
+use Hwkdo\IntranetAppTippspiel\Models\Participant;
+use Hwkdo\IntranetAppTippspiel\Models\Season;
+use Hwkdo\IntranetAppTippspiel\Models\Tip;
+use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
+use Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService;
+use Hwkdo\IntranetAppTippspiel\Support\RoundKey;
+use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+
+#[Layout('components.layouts.app')]
+#[Title('Rundenauswertung')]
+class RundenAuswertung extends Component
+{
+    public Season $season;
+
+    public string $roundKey;
+
+    public string $roundLabel;
+
+    public function mount(Season $season, string $roundSlug): void
+    {
+        $this->season = $season;
+        $this->roundKey = RoundKey::fromSlug($roundSlug);
+
+        $round = $season->availableRounds(tippableOnly: false)
+            ->firstWhere('key', $this->roundKey);
+
+        if ($round === null) {
+            abort(404);
+        }
+
+        $this->roundLabel = $round->label;
+    }
+
+    public function render(TipEvaluationService $evaluationService): View
+    {
+        $matches = TippspielMatch::query()
+            ->where('season_id', $this->season->id)
+            ->forRoundKey($this->roundKey)
+            ->orderBy('kickoff_at')
+            ->get();
+
+        $participants = Participant::query()
+            ->where('season_id', $this->season->id)
+            ->with('user')
+            ->get()
+            ->sortBy(fn (Participant $participant) => $participant->user?->name ?? '')
+            ->values();
+
+        $tips = Tip::query()
+            ->whereIn('match_id', $matches->pluck('id'))
+            ->whereIn('participant_id', $participants->pluck('id'))
+            ->get();
+
+        $tipLookup = [];
+        foreach ($tips as $tip) {
+            $tipLookup[$tip->participant_id][$tip->match_id] = $tip;
+        }
+
+        $leaderboard = $evaluationService->getRoundLeaderboard($this->season, $this->roundKey);
+
+        return view('intranet-app-tippspiel::livewire.apps.tippspiel.runden-auswertung', [
+            'matches' => $matches,
+            'participants' => $participants,
+            'tipLookup' => $tipLookup,
+            'leaderboard' => $leaderboard,
+            'currentUserId' => auth()->id(),
+            'evaluationService' => $evaluationService,
+        ]);
+    }
+}

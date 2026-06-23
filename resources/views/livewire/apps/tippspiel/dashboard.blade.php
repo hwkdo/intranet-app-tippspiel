@@ -81,12 +81,15 @@
                                 <span>{{ $data['participant']->tips()->count() }}</span>
                             </div>
                         </div>
-                        <div class="mt-3 flex gap-2">
+                        <div class="mt-3 flex flex-wrap gap-2">
                             <flux:button size="sm" href="{{ route('apps.tippspiel.tippen', $data['season']) }}" wire:navigate>
                                 Tippen
                             </flux:button>
                             <flux:button size="sm" variant="ghost" href="{{ route('apps.tippspiel.ergebnisse', $data['season']) }}" wire:navigate>
                                 Ergebnisse
+                            </flux:button>
+                            <flux:button size="sm" variant="ghost" href="{{ route('apps.tippspiel.auswertungen', $data['season']) }}" wire:navigate>
+                                Auswertungen
                             </flux:button>
                         </div>
                     </div>

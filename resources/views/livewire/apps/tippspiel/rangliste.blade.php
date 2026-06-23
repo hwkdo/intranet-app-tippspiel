@@ -2,6 +2,12 @@
     heading="{{ $season->name }}"
     subheading="Gesamtrangliste"
 >
+    <div class="mb-4 flex justify-end">
+        <flux:button size="sm" variant="ghost" href="{{ route('apps.tippspiel.auswertungen', $season) }}" wire:navigate>
+            Auswertungen nach Runde →
+        </flux:button>
+    </div>
+
     <div class="glass-card p-4">
         <flux:table>
             <flux:table.columns>
