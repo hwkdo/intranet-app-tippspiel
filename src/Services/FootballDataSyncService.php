@@ -42,44 +42,76 @@ class FootballDataSyncService
     }
 
     /**
-     * Synchronisiert nur den aktuellen und nächsten Spieltag (stündlicher Cron).
+     * Synchronisiert den aktuellen Spieltag, den nächsten sowie Spieltage mit offenen
+     * Ergebnissen (Anpfiff vorbei, Status noch nicht abgeschlossen).
      * Überspringt abgeschlossene Matches, um API-Quota zu schonen.
      */
     public function syncCurrentMatchday(Season $season): int
     {
-        $currentMatchday = $season->currentMatchday();
+        $matchdays = $this->matchdaysToSync($season);
         $synced = 0;
 
-        if ($currentMatchday !== null) {
-            foreach (array_unique([$currentMatchday, $currentMatchday + 1]) as $matchday) {
-                $matches = $this->provider->fetchMatchdayResults($season, $matchday);
+        foreach ($matchdays as $matchday) {
+            $matches = $this->provider->fetchMatchdayResults($season, $matchday);
 
-                DB::transaction(function () use ($season, $matches, &$synced) {
-                    foreach ($matches as $matchData) {
-                        $status = MatchStatus::tryFrom($matchData['status'] ?? '') ?? MatchStatus::Scheduled;
+            DB::transaction(function () use ($season, $matches, &$synced) {
+                foreach ($matches as $matchData) {
+                    $status = MatchStatus::tryFrom($matchData['status'] ?? '') ?? MatchStatus::Scheduled;
 
-                        // Bereits abgeschlossene und bereits als FINISHED gespeicherte Spiele nicht erneut verarbeiten
-                        $existing = TippspielMatch::where('external_id', $matchData['id'])->first();
-                        if ($existing && $existing->isFinished() && $status->isFinished()) {
-                            continue;
-                        }
-
-                        $this->upsertMatch($season, $matchData);
-                        $synced++;
+                    // Bereits abgeschlossene und bereits als FINISHED gespeicherte Spiele nicht erneut verarbeiten
+                    $existing = TippspielMatch::where('external_id', $matchData['id'])->first();
+                    if ($existing && $existing->isFinished() && $status->isFinished()) {
+                        continue;
                     }
-                });
-            }
+
+                    $this->upsertMatch($season, $matchData);
+                    $synced++;
+                }
+            });
         }
 
         $synced += $this->syncOpenKnockoutStages($season);
 
         Log::info('Tippspiel: Spieltag-Sync abgeschlossen', [
             'season' => $season->name,
-            'matchday' => $currentMatchday,
+            'matchdays' => $matchdays,
             'matches_synced' => $synced,
         ]);
 
         return $synced;
+    }
+
+    /**
+     * Spieltage für den Incremental-Sync: aktueller + nächster Spieltag sowie
+     * Spieltage, deren Spiele bereits angepfiffen haben, aber noch kein Endergebnis haben.
+     *
+     * @return list<int>
+     */
+    private function matchdaysToSync(Season $season): array
+    {
+        $matchdays = [];
+
+        $currentMatchday = $season->currentMatchday();
+        if ($currentMatchday !== null) {
+            $matchdays[] = $currentMatchday;
+            $matchdays[] = $currentMatchday + 1;
+        }
+
+        $staleMatchdays = TippspielMatch::query()
+            ->where('season_id', $season->id)
+            ->whereNotNull('matchday')
+            ->where('kickoff_at', '<', now())
+            ->whereNotIn('status', [
+                MatchStatus::Finished->value,
+                MatchStatus::Awarded->value,
+                MatchStatus::Cancelled->value,
+            ])
+            ->distinct()
+            ->orderBy('matchday')
+            ->pluck('matchday')
+            ->all();
+
+        return array_values(array_unique(array_merge($matchdays, $staleMatchdays)));
     }
 
     /**
