@@ -22,52 +22,31 @@
         </div>
     </div>
 
-    {{-- Spieltags-Rangliste --}}
+    {{-- Wertung --}}
     <div class="glass-card mb-4 p-4">
-        <flux:heading size="sm" class="mb-3">Rangliste {{ $roundLabel }}</flux:heading>
-        <flux:table>
-            <flux:table.columns>
-                <flux:table.column class="w-12" align="center">#</flux:table.column>
-                <flux:table.column>Teilnehmer</flux:table.column>
-                <flux:table.column align="end" class="w-20">Tipps</flux:table.column>
-                <flux:table.column align="end" class="w-24">Punkte</flux:table.column>
-            </flux:table.columns>
-            <flux:table.rows>
-                @forelse ($leaderboard as $entry)
-                    <flux:table.row class="{{ $entry['user_id'] == $currentUserId ? 'bg-blue-50 dark:bg-blue-950' : '' }}">
-                        <flux:table.cell align="center">
-                            @if ($entry['rank'] === 1)
-                                <flux:icon name="trophy" class="size-4 text-yellow-500" />
-                            @elseif ($entry['rank'] === 2)
-                                <flux:icon name="trophy" class="size-4 text-zinc-400" />
-                            @elseif ($entry['rank'] === 3)
-                                <flux:icon name="trophy" class="size-4 text-amber-700" />
-                            @else
-                                <span class="text-sm text-zinc-500">{{ $entry['rank'] }}.</span>
-                            @endif
-                        </flux:table.cell>
-                        <flux:table.cell>
-                            <div class="flex items-center gap-2">
-                                {{ $entry['user_name'] }}
-                                @if ($entry['user_id'] == $currentUserId)
-                                    <flux:badge size="sm" color="blue">Ich</flux:badge>
-                                @endif
-                            </div>
-                        </flux:table.cell>
-                        <flux:table.cell align="end">
-                            {{ $entry['evaluated_count'] }}/{{ $entry['tips_count'] }}
-                        </flux:table.cell>
-                        <flux:table.cell align="end" variant="strong">{{ $entry['round_points'] }}</flux:table.cell>
-                    </flux:table.row>
-                @empty
-                    <flux:table.row>
-                        <flux:table.cell colspan="4" class="py-8 text-center text-zinc-500">
-                            Für diese Runde liegen noch keine Tipps vor.
-                        </flux:table.cell>
-                    </flux:table.row>
-                @endforelse
-            </flux:table.rows>
-        </flux:table>
+        <flux:heading size="sm" class="mb-3">Wertung {{ $roundLabel }}</flux:heading>
+
+        <flux:tabs wire:model.live="wertung" class="mb-4">
+            <flux:tab name="einzel">Einzelwertung</flux:tab>
+            <flux:tab name="team">Teamwertung</flux:tab>
+        </flux:tabs>
+
+        @if ($wertung === 'team')
+            <flux:text class="mb-3 text-sm text-zinc-500">
+                Team-Punkte = Summe der Einzelpunkte ÷ Anzahl der Tippspiel-Teilnehmer je GVP-Einheit.
+            </flux:text>
+            <x-intranet-app-tippspiel::teamwertung-table
+                :leaderboard="$teamLeaderboard"
+                :current-user-gvp-id="$currentUserGvpId"
+                empty-message="Für diese Runde liegen noch keine Team-Tipps vor."
+            />
+        @else
+            <x-intranet-app-tippspiel::einzelwertung-table
+                :leaderboard="$leaderboard"
+                :current-user-id="$currentUserId"
+                empty-message="Für diese Runde liegen noch keine Tipps vor."
+            />
+        @endif
     </div>
 
     {{-- Alle Tipps --}}

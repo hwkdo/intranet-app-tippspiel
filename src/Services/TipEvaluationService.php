@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Hwkdo\IntranetAppTippspiel\Services;
 
 use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
+use Hwkdo\IntranetAppTippspiel\Models\Participant;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
+use Hwkdo\IntranetAppTippspiel\Support\TippspielModels;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -215,6 +218,146 @@ class TipEvaluationService
                 return $entry;
             })
             ->toArray();
+    }
+
+    /**
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int}>
+     */
+    public function getTeamLeaderboard(Season $season): array
+    {
+        $participants = $season->participants()
+            ->with('user')
+            ->withCount('tips')
+            ->get();
+
+        return $this->buildTeamLeaderboard(
+            $participants,
+            fn (Participant $participant): int => $participant->total_points,
+            fn (Participant $participant): int => $participant->tips_count,
+        );
+    }
+
+    /**
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int, evaluated_count: int}>
+     */
+    public function getTeamRoundLeaderboard(Season $season, string $roundKey): array
+    {
+        $matchIds = TippspielMatch::query()
+            ->where('season_id', $season->id)
+            ->forRoundKey($roundKey)
+            ->pluck('id');
+
+        if ($matchIds->isEmpty()) {
+            return [];
+        }
+
+        $participants = $season->participants()
+            ->with([
+                'user',
+                'tips' => fn ($query) => $query->whereIn('match_id', $matchIds),
+            ])
+            ->get()
+            ->filter(function (Participant $participant) {
+                return $participant->tips->isNotEmpty();
+            });
+
+        return $this->buildTeamLeaderboard(
+            $participants,
+            function (Participant $participant): int {
+                return (int) $participant->tips->sum(fn (Tip $tip) => $tip->points_earned ?? 0);
+            },
+            fn (Participant $participant): int => $participant->tips->count(),
+            fn (Participant $participant): int => $participant->tips->whereNotNull('points_earned')->count(),
+        );
+    }
+
+    /**
+     * @param  Collection<int, Participant>  $participants
+     * @param  callable(Participant): int  $pointsResolver
+     * @param  callable(Participant): int  $tipsCountResolver
+     * @param  (callable(Participant): int)|null  $evaluatedCountResolver
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildTeamLeaderboard(
+        Collection $participants,
+        callable $pointsResolver,
+        callable $tipsCountResolver,
+        ?callable $evaluatedCountResolver = null,
+    ): array {
+        /** @var Collection<int|string|null, Collection<int, Participant>> $grouped */
+        $grouped = $participants->groupBy(fn (Participant $participant) => $participant->user?->gvp_id);
+
+        $gvpIds = $grouped->keys()
+            ->filter(fn ($gvpId) => $gvpId !== null && $gvpId !== '')
+            ->map(fn ($gvpId) => (int) $gvpId)
+            ->values();
+
+        if ($gvpIds->isEmpty()) {
+            return [];
+        }
+
+        $gvpModel = TippspielModels::gvp();
+        /** @var Collection<int, Model> $gvps */
+        $gvps = $gvpModel::query()->whereIn('id', $gvpIds)->get()->keyBy('id');
+
+        $teams = $grouped
+            ->filter(fn (Collection $group, $gvpId) => $gvpId !== null && $gvpId !== '')
+            ->map(function (Collection $group, $gvpId) use ($gvps, $pointsResolver, $tipsCountResolver, $evaluatedCountResolver) {
+                $playerCount = $group->count();
+
+                if ($playerCount === 0) {
+                    return null;
+                }
+
+                $totalPoints = (int) $group->sum(fn (Participant $participant) => $pointsResolver($participant));
+                $gvp = $gvps->get((int) $gvpId);
+
+                $entry = [
+                    'gvp_id' => (int) $gvpId,
+                    'team_name' => $this->formatGvpName($gvp),
+                    'player_count' => $playerCount,
+                    'total_points' => $totalPoints,
+                    'team_points' => $totalPoints / $playerCount,
+                    'tips_count' => (int) $group->sum(fn (Participant $participant) => $tipsCountResolver($participant)),
+                ];
+
+                if ($evaluatedCountResolver !== null) {
+                    $entry['evaluated_count'] = (int) $group->sum(fn (Participant $participant) => $evaluatedCountResolver($participant));
+                }
+
+                return $entry;
+            })
+            ->filter()
+            ->sort(function (array $a, array $b) {
+                return $b['team_points'] <=> $a['team_points']
+                    ?: strcmp($a['team_name'], $b['team_name']);
+            })
+            ->values()
+            ->map(function (array $entry, int $index) {
+                $entry['rank'] = $index + 1;
+
+                return $entry;
+            })
+            ->toArray();
+
+        return $teams;
+    }
+
+    private function formatGvpName(?Model $gvp): string
+    {
+        if ($gvp === null) {
+            return 'Unbekannt';
+        }
+
+        if (isset($gvp->bezeichnung) && is_string($gvp->bezeichnung) && trim($gvp->bezeichnung) !== '') {
+            return trim($gvp->bezeichnung);
+        }
+
+        return trim(collect([
+            $gvp->getAttribute('kuerzel'),
+            $gvp->getAttribute('nummer'),
+            $gvp->getAttribute('name'),
+        ])->filter()->implode(' ')) ?: 'Unbekannt';
     }
 
     public function pointsBadgeColor(int $points, Season $season): string

@@ -10,6 +10,7 @@ use Hwkdo\IntranetAppTippspiel\Models\Tip;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
 use Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService;
 use Hwkdo\IntranetAppTippspiel\Support\RoundKey;
+use Hwkdo\IntranetAppTippspiel\Support\TippspielModels;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -24,6 +25,8 @@ class RundenAuswertung extends Component
     public string $roundKey;
 
     public string $roundLabel;
+
+    public string $wertung = 'einzel';
 
     public function mount(Season $season, string $roundSlug): void
     {
@@ -66,13 +69,17 @@ class RundenAuswertung extends Component
         }
 
         $leaderboard = $evaluationService->getRoundLeaderboard($this->season, $this->roundKey);
+        $user = auth()->user();
+        $userModel = TippspielModels::user();
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.runden-auswertung', [
             'matches' => $matches,
             'participants' => $participants,
             'tipLookup' => $tipLookup,
             'leaderboard' => $leaderboard,
-            'currentUserId' => auth()->id(),
+            'teamLeaderboard' => $evaluationService->getTeamRoundLeaderboard($this->season, $this->roundKey),
+            'currentUserId' => $user?->id,
+            'currentUserGvpId' => $user instanceof $userModel ? $user->gvp_id : null,
             'evaluationService' => $evaluationService,
         ]);
     }

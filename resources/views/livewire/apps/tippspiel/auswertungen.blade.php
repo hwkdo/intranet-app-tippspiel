@@ -4,7 +4,7 @@
 >
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <flux:text class="text-sm text-zinc-500">
-            Wähle eine Runde, um alle Tipps und die Spieltags-Rangliste zu sehen.
+            Wähle eine Runde für Einzel- und Teamwertung mit allen Tipps.
         </flux:text>
         <flux:button size="sm" variant="ghost" href="{{ route('apps.tippspiel.rangliste', $season) }}" wire:navigate>
             Gesamtrangliste

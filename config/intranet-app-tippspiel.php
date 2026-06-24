@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'gvp_model' => env('INTRANET_APP_TIPPSPIEL_GVP_MODEL', \App\Models\Gvp::class),
+    'user_model' => env('INTRANET_APP_TIPPSPIEL_USER_MODEL', \App\Models\User::class),
+
     'roles' => [
         'admin' => [
             'name' => 'App-Tippspiel-Admin',
