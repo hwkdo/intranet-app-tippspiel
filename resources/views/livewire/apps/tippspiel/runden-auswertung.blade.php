@@ -27,15 +27,15 @@
         <flux:heading size="sm" class="mb-3">Rangliste {{ $roundLabel }}</flux:heading>
         <flux:table>
             <flux:table.columns>
-                <flux:table.column class="w-12">#</flux:table.column>
+                <flux:table.column class="w-12" align="center">#</flux:table.column>
                 <flux:table.column>Teilnehmer</flux:table.column>
-                <flux:table.column class="text-right">Tipps</flux:table.column>
-                <flux:table.column class="text-right">Punkte</flux:table.column>
+                <flux:table.column align="end" class="w-20">Tipps</flux:table.column>
+                <flux:table.column align="end" class="w-24">Punkte</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @forelse ($leaderboard as $entry)
                     <flux:table.row class="{{ $entry['user_id'] == $currentUserId ? 'bg-blue-50 dark:bg-blue-950' : '' }}">
-                        <flux:table.cell>
+                        <flux:table.cell align="center">
                             @if ($entry['rank'] === 1)
                                 <flux:icon name="trophy" class="size-4 text-yellow-500" />
                             @elseif ($entry['rank'] === 2)
@@ -54,10 +54,10 @@
                                 @endif
                             </div>
                         </flux:table.cell>
-                        <flux:table.cell class="text-right text-sm text-zinc-500">
+                        <flux:table.cell align="end">
                             {{ $entry['evaluated_count'] }}/{{ $entry['tips_count'] }}
                         </flux:table.cell>
-                        <flux:table.cell class="text-right font-bold">{{ $entry['round_points'] }}</flux:table.cell>
+                        <flux:table.cell align="end" variant="strong">{{ $entry['round_points'] }}</flux:table.cell>
                     </flux:table.row>
                 @empty
                     <flux:table.row>

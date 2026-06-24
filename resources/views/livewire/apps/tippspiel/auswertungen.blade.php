@@ -15,16 +15,16 @@
         <flux:table>
             <flux:table.columns>
                 <flux:table.column>Runde</flux:table.column>
-                <flux:table.column class="text-right">Spiele</flux:table.column>
+                <flux:table.column align="end" class="w-36">Spiele</flux:table.column>
                 <flux:table.column>Status</flux:table.column>
-                <flux:table.column class="text-right">Vergebene Punkte</flux:table.column>
-                <flux:table.column class="w-32"></flux:table.column>
+                <flux:table.column align="end" class="w-36">Vergebene Punkte</flux:table.column>
+                <flux:table.column align="end" class="w-28"></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
                 @forelse ($roundSummaries as $summary)
                     <flux:table.row>
                         <flux:table.cell class="font-medium">{{ $summary['round_label'] }}</flux:table.cell>
-                        <flux:table.cell class="text-right text-sm text-zinc-500">
+                        <flux:table.cell align="end">
                             {{ $summary['finished_count'] }}/{{ $summary['match_count'] }} beendet
                         </flux:table.cell>
                         <flux:table.cell>
@@ -38,14 +38,14 @@
                                 <flux:badge color="zinc" size="sm">Offen</flux:badge>
                             @endif
                         </flux:table.cell>
-                        <flux:table.cell class="text-right font-medium">
+                        <flux:table.cell align="end" variant="strong">
                             @if ($summary['has_evaluations'])
                                 {{ $summary['round_points_total'] }}
                             @else
                                 <span class="text-zinc-400">—</span>
                             @endif
                         </flux:table.cell>
-                        <flux:table.cell class="text-right">
+                        <flux:table.cell align="end">
                             <flux:button
                                 size="xs"
                                 variant="ghost"
