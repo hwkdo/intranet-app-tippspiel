@@ -54,8 +54,10 @@
 
                     <flux:field>
                         <flux:label>Modell</flux:label>
-                        <flux:input wire:model="aiNewsModel" placeholder="z. B. gpt-4o oder gpt-oss:20b" />
-                        <flux:description>Leer lassen für Provider-Standard</flux:description>
+                        <flux:input wire:model="aiNewsModel" placeholder="z. B. gpt-4o (empfohlen) oder gpt-5-mini" />
+                        <flux:description>
+                            Empfohlen: gpt-4o. Leer = gpt-4o. Reasoning-Modelle (gpt-5.x) nutzen minimalen Reasoning-Aufwand mit Fallback auf gpt-4o.
+                        </flux:description>
                     </flux:field>
 
                     <flux:field>
