@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel\Admin;
 
+use Flux\Flux;
 use Hwkdo\IntranetAppTippspiel\Contracts\FootballDataProviderInterface;
 use Hwkdo\IntranetAppTippspiel\Data\AppSettings;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
@@ -38,7 +39,11 @@ class Saisons extends Component
         $season->is_active = ! $season->is_active;
         $season->save();
 
-        $this->dispatch('flash', type: 'success', message: "Saison \"{$season->name}\" wurde ".($season->is_active ? 'aktiviert' : 'deaktiviert').'.');
+        Flux::toast(
+            heading: 'Saison aktualisiert',
+            text: "Saison \"{$season->name}\" wurde ".($season->is_active ? 'aktiviert' : 'deaktiviert').'.',
+            variant: 'success',
+        );
     }
 
     public function importSeason(FootballDataProviderInterface $provider, FootballDataSyncService $syncService): void
@@ -67,7 +72,11 @@ class Saisons extends Component
             $count = $syncService->syncAllMatches($season);
 
             $this->showImportModal = false;
-            $this->dispatch('flash', type: 'success', message: "Saison \"{$season->name}\" importiert – {$count} Spiele.");
+            Flux::toast(
+                heading: 'Saison importiert',
+                text: "Saison \"{$season->name}\" importiert – {$count} Spiele.",
+                variant: 'success',
+            );
         } catch (\Throwable $e) {
             $this->importError = $e->getMessage();
         }
@@ -82,7 +91,11 @@ class Saisons extends Component
             'points_correct_tendency' => max(0, $tendency),
         ]);
 
-        $this->dispatch('flash', type: 'success', message: 'Punkte-Regeln gespeichert.');
+        Flux::toast(
+            heading: 'Gespeichert',
+            text: 'Punkte-Regeln gespeichert.',
+            variant: 'success',
+        );
     }
 
     public function syncSeason(int $seasonId, FootballDataSyncService $syncService): void
@@ -91,9 +104,17 @@ class Saisons extends Component
 
         try {
             $count = $syncService->syncCurrentMatchday($season);
-            $this->dispatch('flash', type: 'success', message: "{$count} Spiele synchronisiert.");
+            Flux::toast(
+                heading: 'Synchronisiert',
+                text: "{$count} Spiele synchronisiert.",
+                variant: 'success',
+            );
         } catch (\Throwable $e) {
-            $this->dispatch('flash', type: 'danger', message: 'Fehler: '.$e->getMessage());
+            Flux::toast(
+                heading: 'Fehler',
+                text: $e->getMessage(),
+                variant: 'danger',
+            );
         }
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel\Admin;
 
 use App\Models\Kategorie;
+use Flux\Flux;
 use Hwkdo\IntranetAppTippspiel\Data\AppSettings;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielSettings;
@@ -118,7 +119,11 @@ class Einstellungen extends Component
 
         TippspielSettings::persistAppSettings($settings);
 
-        $this->dispatch('flash', type: 'success', message: 'Einstellungen gespeichert.');
+        Flux::toast(
+            heading: 'Gespeichert',
+            text: 'Einstellungen wurden gespeichert.',
+            variant: 'success',
+        );
     }
 
     public function resetPrompt(): void

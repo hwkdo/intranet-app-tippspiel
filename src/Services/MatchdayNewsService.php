@@ -6,6 +6,7 @@ namespace Hwkdo\IntranetAppTippspiel\Services;
 
 use App\Models\News;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
+use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielSettings;
@@ -121,9 +122,23 @@ class MatchdayNewsService
 
         $prompt = $this->promptBuilder->build($context, $settings->resolvedAiNewsPrompt());
 
+        Log::info('Tippspiel: KI-News-Prompt erstellt, rufe Provider auf.', [
+            'season' => $season->name,
+            'matchday' => $matchday,
+            'provider' => $settings->aiNewsProvider,
+            'model' => $settings->aiNewsModel,
+        ]);
+
         $content = $this->aiPort->generateMatchdayNews($prompt);
 
         if (! filled($content)) {
+            Log::warning('Tippspiel: KI-Provider lieferte keinen Artikeltext.', [
+                'season' => $season->name,
+                'matchday' => $matchday,
+                'provider' => $settings->aiNewsProvider,
+                'model' => $settings->aiNewsModel,
+            ]);
+
             return null;
         }
 
@@ -156,5 +171,53 @@ class MatchdayNewsService
         $this->imageService->generateAndAttach($news, $season, $matchday);
 
         return $news;
+    }
+
+    public function explainGenerationFailure(Season $season, int $matchday, bool $isAutomatic = false): string
+    {
+        $settings = TippspielSettings::resolvedAppSettings();
+
+        if ($isAutomatic && ! $settings->aiNewsAutoCreateAfterMatchday) {
+            return 'Automatische KI-News ist in den Einstellungen deaktiviert.';
+        }
+
+        if (! $settings->isAiNewsConfigured()) {
+            return sprintf(
+                'KI-News nicht konfiguriert: Kategorie-ID=%d, Publisher-ID=%d. Bitte unter Tippspiel → Admin → Einstellungen setzen.',
+                $settings->aiNewsKategorieId,
+                $settings->aiNewsPublisherId,
+            );
+        }
+
+        if ($this->findExistingNews($season, $matchday) !== null) {
+            return 'Für diesen Spieltag existiert bereits ein News-Artikel.';
+        }
+
+        if (! $this->evaluationService->isMatchdayComplete($season, $matchday)) {
+            return "Spieltag {$matchday} ist noch nicht vollständig abgeschlossen.";
+        }
+
+        if ($this->contextBuilder->build($season, $matchday) === null) {
+            $total = TippspielMatch::query()
+                ->where('season_id', $season->id)
+                ->where('matchday', $matchday)
+                ->count();
+
+            $finished = TippspielMatch::query()
+                ->where('season_id', $season->id)
+                ->where('matchday', $matchday)
+                ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
+                ->whereNotNull('home_score')
+                ->whereNotNull('away_score')
+                ->count();
+
+            return "Keine auswertbaren Ergebnisse für Spieltag {$matchday} ({$finished}/{$total} Spiele abgeschlossen mit Ergebnis). Zuerst Tipps auswerten?";
+        }
+
+        if ($settings->aiNewsProvider === 'langdock' && ! filled(config('services.langdock.api_key'))) {
+            return 'LANGDOCK_API_KEY fehlt in der Server-Konfiguration (services.langdock.api_key).';
+        }
+
+        return 'KI-Provider lieferte keinen Artikeltext. Details in storage/logs/laravel.log (Suche nach „Tippspiel“).';
     }
 }

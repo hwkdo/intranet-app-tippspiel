@@ -7,7 +7,9 @@ namespace Hwkdo\IntranetAppTippspiel\Ai;
 use GuzzleHttp\Client as GuzzleClient;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielSettings;
+use Illuminate\Support\Facades\Log;
 use OpenAI;
+use Throwable;
 
 class LangdockNewsPort implements TippspielAiNewsPortInterface
 {
@@ -18,19 +20,28 @@ class LangdockNewsPort implements TippspielAiNewsPortInterface
             ? $settings->aiNewsModel
             : 'gpt-4o';
 
-        $client = OpenAI::factory()
-            ->withApiKey((string) config('services.langdock.api_key'))
-            ->withHttpClient(new GuzzleClient(['timeout' => 60, 'connect_timeout' => 10]))
-            ->withBaseUri($this->langdockBaseUri())
-            ->make();
+        try {
+            $client = OpenAI::factory()
+                ->withApiKey((string) config('services.langdock.api_key'))
+                ->withHttpClient(new GuzzleClient(['timeout' => 60, 'connect_timeout' => 10]))
+                ->withBaseUri($this->langdockBaseUri())
+                ->make();
 
-        $result = $client->chat()->create([
-            'model' => $model,
-            'messages' => [['role' => 'user', 'content' => $prompt]],
-            'max_tokens' => 1000,
-        ]);
+            $result = $client->chat()->create([
+                'model' => $model,
+                'messages' => [['role' => 'user', 'content' => $prompt]],
+                'max_tokens' => 1000,
+            ]);
 
-        return $result->choices[0]->message->content ?? '';
+            return $result->choices[0]->message->content ?? '';
+        } catch (Throwable $e) {
+            Log::error('Tippspiel: Langdock KI-News-Textgenerierung fehlgeschlagen.', [
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+
+            return '';
+        }
     }
 
     private function langdockBaseUri(): string

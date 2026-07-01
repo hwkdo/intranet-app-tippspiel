@@ -38,13 +38,21 @@ class GenerateMatchdayNewsCommand extends Command
             return self::FAILURE;
         }
 
+        $existingNews = $newsService->findExistingNews($season, $matchday);
+
         $this->info("Generiere News für {$season->name} – Spieltag {$matchday}...");
 
         try {
             $news = $newsService->generateAndPersist($season, $matchday, isAutomatic: false);
 
             if ($news === null) {
-                $this->warn('Kein News-Artikel erstellt (fehlende Konfiguration oder keine abgeschlossenen Spiele).');
+                $this->warn($newsService->explainGenerationFailure($season, $matchday));
+
+                return self::FAILURE;
+            }
+
+            if ($existingNews !== null && $existingNews->id === $news->id) {
+                $this->info("News bereits vorhanden: [{$news->id}] {$news->title}");
 
                 return self::SUCCESS;
             }

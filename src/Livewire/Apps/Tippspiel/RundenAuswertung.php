@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel;
 
+use Flux\Flux;
 use Hwkdo\IntranetAppTippspiel\Models\Participant;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
@@ -14,6 +15,7 @@ use Hwkdo\IntranetAppTippspiel\Support\RoundKey;
 use Hwkdo\IntranetAppTippspiel\Support\TippspielModels;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -60,31 +62,63 @@ class RundenAuswertung extends Component
         $this->authorize('manage-app-tippspiel');
 
         if ($this->matchday === null) {
-            $this->dispatch('flash', type: 'warning', message: 'KI-News können nur für Spieltage erstellt werden.');
+            Flux::toast(
+                heading: 'KI-News',
+                text: 'KI-News können nur für Spieltage erstellt werden.',
+                variant: 'warning',
+            );
 
             return;
         }
 
         if (! $evaluationService->isMatchdayComplete($this->season, $this->matchday)) {
-            $this->dispatch('flash', type: 'warning', message: 'Der Spieltag ist noch nicht vollständig abgeschlossen.');
+            Flux::toast(
+                heading: 'KI-News',
+                text: 'Der Spieltag ist noch nicht vollständig abgeschlossen.',
+                variant: 'warning',
+            );
 
             return;
         }
+
+        Log::info('Tippspiel: Manuelle KI-News-Generierung gestartet.', [
+            'season_id' => $this->season->id,
+            'matchday' => $this->matchday,
+            'user_id' => auth()->id(),
+        ]);
 
         try {
             $news = $newsService->generateAndPersist($this->season, $this->matchday, isAutomatic: false);
 
             if ($news === null) {
-                $this->dispatch('flash', type: 'warning', message: 'News konnte nicht erstellt werden. Bitte Kategorie und Publisher in den Einstellungen konfigurieren.');
+                Flux::toast(
+                    heading: 'KI-News fehlgeschlagen',
+                    text: $newsService->explainGenerationFailure($this->season, $this->matchday),
+                    variant: 'warning',
+                );
 
                 return;
             }
 
             $status = $news->is_published ? 'veröffentlicht' : 'als Entwurf gespeichert';
 
-            $this->dispatch('flash', type: 'success', message: "News \"{$news->title}\" {$status}.");
+            Flux::toast(
+                heading: 'KI-News erstellt',
+                text: "\"{$news->title}\" {$status}.",
+                variant: 'success',
+            );
         } catch (\Throwable $e) {
-            $this->dispatch('flash', type: 'danger', message: 'Fehler: '.$e->getMessage());
+            Log::error('Tippspiel: Manuelle KI-News-Generierung fehlgeschlagen.', [
+                'season_id' => $this->season->id,
+                'matchday' => $this->matchday,
+                'error' => $e->getMessage(),
+            ]);
+
+            Flux::toast(
+                heading: 'KI-News Fehler',
+                text: $e->getMessage(),
+                variant: 'danger',
+            );
         }
     }
 
