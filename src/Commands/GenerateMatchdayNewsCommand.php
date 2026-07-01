@@ -41,10 +41,10 @@ class GenerateMatchdayNewsCommand extends Command
         $this->info("Generiere News für {$season->name} – Spieltag {$matchday}...");
 
         try {
-            $news = $newsService->generateAndPersist($season, $matchday);
+            $news = $newsService->generateAndPersist($season, $matchday, isAutomatic: false);
 
             if ($news === null) {
-                $this->warn('Kein News-Artikel erstellt (deaktiviert oder fehlende Konfiguration).');
+                $this->warn('Kein News-Artikel erstellt (fehlende Konfiguration oder keine abgeschlossenen Spiele).');
 
                 return self::SUCCESS;
             }

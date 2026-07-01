@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hwkdo\IntranetAppTippspiel\Commands;
 
 use Hwkdo\IntranetAppTippspiel\Models\Season;
+use Hwkdo\IntranetAppTippspiel\Services\MatchdayNewsService;
 use Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService;
 use Illuminate\Console\Command;
 
@@ -16,7 +17,10 @@ class EvaluateTipsCommand extends Command
 
     protected $description = 'Wertet Tipps für abgeschlossene Spiele aus und vergibt Punkte';
 
-    public function handle(TipEvaluationService $evaluationService): int
+    public function handle(
+        TipEvaluationService $evaluationService,
+        MatchdayNewsService $newsService,
+    ): int
     {
         $seasonId = $this->argument('season');
         $matchday = $this->option('matchday') !== null ? (int) $this->option('matchday') : null;
@@ -39,6 +43,8 @@ class EvaluateTipsCommand extends Command
             try {
                 $count = $evaluationService->evaluateSeason($season, $matchday);
                 $this->info("  → {$count} Tipps ausgewertet.");
+
+                $newsService->autoGenerateForCompletedMatchdays($season);
             } catch (\Throwable $e) {
                 $this->error("  Fehler: {$e->getMessage()}");
             }

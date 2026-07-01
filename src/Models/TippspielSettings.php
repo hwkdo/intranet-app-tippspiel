@@ -23,7 +23,26 @@ class TippspielSettings extends Model
 
     public static function current(): ?TippspielSettings
     {
-        return static::orderBy('version', 'desc')->first();
+        return static::query()
+            ->orderByDesc('version')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public static function persistAppSettings(AppSettings $settings): TippspielSettings
+    {
+        $current = static::current();
+
+        if ($current !== null) {
+            $current->update(['settings' => $settings]);
+
+            return $current->refresh();
+        }
+
+        return static::create([
+            'version' => 1,
+            'settings' => $settings,
+        ]);
     }
 
     public static function resolvedAppSettings(): AppSettings
