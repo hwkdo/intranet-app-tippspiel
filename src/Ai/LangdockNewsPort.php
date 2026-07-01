@@ -14,7 +14,7 @@ class LangdockNewsPort implements TippspielAiNewsPortInterface
 {
     private const string DEFAULT_MODEL = 'gpt-4o';
 
-  /** @var list<string> */
+    /** @var list<string> */
     private const array FALLBACK_MODELS = ['gpt-4o', 'gpt-4o-mini'];
 
     private const string SYSTEM_PROMPT = <<<'PROMPT'
@@ -133,7 +133,7 @@ class LangdockNewsPort implements TippspielAiNewsPortInterface
         ];
 
         if ($this->isReasoningModel($model)) {
-            $payload['reasoning_effort'] = 'minimal';
+            $payload['reasoning_effort'] = 'none';
         }
 
         return $payload;
