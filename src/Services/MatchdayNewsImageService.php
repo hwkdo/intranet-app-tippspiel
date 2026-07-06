@@ -20,7 +20,7 @@ class MatchdayNewsImageService
         private readonly MatchdayNewsImagePromptBuilder $promptBuilder,
     ) {}
 
-    public function generateAndAttach(News $news, Season $season, int $matchday): bool
+    public function generateAndAttach(News $news, Season $season, string $roundKey): bool
     {
         $settings = TippspielSettings::resolvedAppSettings();
 
@@ -28,12 +28,14 @@ class MatchdayNewsImageService
             return false;
         }
 
-        $matches = $this->featuredMatches->forMatchday($season, $matchday);
+        $round = $season->availableRounds(tippableOnly: false)->firstWhere('key', $roundKey);
+        $roundLabel = $round?->label ?? $roundKey;
+        $matches = $this->featuredMatches->forRound($season, $roundKey);
 
         if ($matches === []) {
             Log::warning('Tippspiel: Keine Spiele für Titelbild-Generierung.', [
                 'season' => $season->name,
-                'matchday' => $matchday,
+                'round_key' => $roundKey,
             ]);
 
             return false;
@@ -41,7 +43,7 @@ class MatchdayNewsImageService
 
         $prompt = $this->promptBuilder->build(
             season: $season,
-            matchday: $matchday,
+            roundLabel: $roundLabel,
             featuredMatches: $matches,
             template: $settings->resolvedAiNewsImagePrompt(),
         );
@@ -62,7 +64,7 @@ class MatchdayNewsImageService
 
             Log::info('Tippspiel: KI-Titelbild angehängt.', [
                 'news_id' => $news->id,
-                'matchday' => $matchday,
+                'round_key' => $roundKey,
                 'crest_count' => count($crestUrls),
             ]);
 
@@ -77,9 +79,11 @@ class MatchdayNewsImageService
         }
     }
 
-    public function buildPromptPreview(Season $season, int $matchday, ?string $template = null): ?string
+    public function buildPromptPreview(Season $season, string $roundKey, ?string $template = null): ?string
     {
-        $matches = $this->featuredMatches->forMatchday($season, $matchday);
+        $round = $season->availableRounds(tippableOnly: false)->firstWhere('key', $roundKey);
+        $roundLabel = $round?->label ?? $roundKey;
+        $matches = $this->featuredMatches->forRound($season, $roundKey);
 
         if ($matches === []) {
             return null;
@@ -87,7 +91,7 @@ class MatchdayNewsImageService
 
         return $this->promptBuilder->build(
             season: $season,
-            matchday: $matchday,
+            roundLabel: $roundLabel,
             featuredMatches: $matches,
             template: $template,
         );

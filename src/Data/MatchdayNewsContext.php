@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hwkdo\IntranetAppTippspiel\Data;
 
 /**
- * Aggregierte Fakten für die KI-Spieltagsberichterstattung.
+ * Aggregierte Fakten für die KI-Rundenberichterstattung.
  */
 readonly class MatchdayNewsContext
 {
@@ -48,8 +48,9 @@ readonly class MatchdayNewsContext
      */
     public function __construct(
         public string $seasonName,
-        public int $matchday,
-        public bool $isFirstMatchday,
+        public string $roundKey,
+        public string $roundLabel,
+        public bool $isFirstRound,
         public array $matches,
         public array $roundHighlights,
         public array $tipAnalysis,

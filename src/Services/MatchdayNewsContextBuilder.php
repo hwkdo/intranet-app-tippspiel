@@ -7,7 +7,6 @@ namespace Hwkdo\IntranetAppTippspiel\Services;
 use Hwkdo\IntranetAppTippspiel\Data\MatchdayNewsContext;
 use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
-use Hwkdo\IntranetAppTippspiel\Models\Tip;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
 use Illuminate\Support\Collection;
 
@@ -17,11 +16,18 @@ class MatchdayNewsContextBuilder
         private readonly TipEvaluationService $evaluationService,
     ) {}
 
-    public function build(Season $season, int $matchday): ?MatchdayNewsContext
+    public function build(Season $season, string $roundKey): ?MatchdayNewsContext
     {
+        $round = $season->availableRounds(tippableOnly: false)
+            ->firstWhere('key', $roundKey);
+
+        if ($round === null) {
+            return null;
+        }
+
         $matches = TippspielMatch::query()
             ->where('season_id', $season->id)
-            ->where('matchday', $matchday)
+            ->forRoundKey($roundKey)
             ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
             ->whereNotNull('home_score')
             ->whereNotNull('away_score')
@@ -33,29 +39,31 @@ class MatchdayNewsContextBuilder
             return null;
         }
 
-        $isFirstMatchday = $matchday <= 1;
+        $previousRoundKey = $this->evaluationService->previousRoundKey($season, $roundKey);
+        $isFirstRound = $previousRoundKey === null;
         $matchStats = $this->buildMatchStats($matches, $season);
-        $roundLeaderboard = $this->evaluationService->getRoundLeaderboard($season, "md:{$matchday}");
+        $roundLeaderboard = $this->evaluationService->getRoundLeaderboard($season, $roundKey);
         $roundHighlights = $this->buildRoundHighlights($roundLeaderboard);
         $tipAnalysis = $this->buildTipAnalysis($matchStats);
-        $currentLeaderboard = $this->leaderboardUpToMatchday($season, $matchday);
-        $previousLeaderboard = $isFirstMatchday
-            ? []
-            : $this->leaderboardUpToMatchday($season, $matchday - 1);
-        $rankChanges = $this->buildRankChanges($previousLeaderboard, $currentLeaderboard, $isFirstMatchday);
+        $currentLeaderboard = $this->evaluationService->leaderboardUpToRound($season, $roundKey);
+        $previousLeaderboard = $previousRoundKey !== null
+            ? $this->evaluationService->leaderboardUpToRound($season, $previousRoundKey)
+            : [];
+        $rankChanges = $this->buildRankChanges($previousLeaderboard, $currentLeaderboard, $isFirstRound);
 
         $storylines = $this->buildStorylines(
-            $matchday,
+            $round->label,
             $roundHighlights,
             $tipAnalysis,
             $rankChanges,
-            $isFirstMatchday,
+            $isFirstRound,
         );
 
         return new MatchdayNewsContext(
             seasonName: $season->name,
-            matchday: $matchday,
-            isFirstMatchday: $isFirstMatchday,
+            roundKey: $roundKey,
+            roundLabel: $round->label,
+            isFirstRound: $isFirstRound,
             matches: $matchStats,
             roundHighlights: $roundHighlights,
             tipAnalysis: $tipAnalysis,
@@ -63,52 +71,6 @@ class MatchdayNewsContextBuilder
             currentLeaderboard: $currentLeaderboard,
             storylines: $storylines,
         );
-    }
-
-    /**
-     * @return array<int, array{rank: int, participant_id: int, user_name: string, total_points: int}>
-     */
-    public function leaderboardUpToMatchday(Season $season, int $upToMatchday): array
-    {
-        $matchIds = TippspielMatch::query()
-            ->where('season_id', $season->id)
-            ->where('matchday', '<=', $upToMatchday)
-            ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
-            ->pluck('id');
-
-        if ($matchIds->isEmpty()) {
-            return [];
-        }
-
-        $pointsByParticipant = Tip::query()
-            ->selectRaw('participant_id, SUM(points_earned) as total_points')
-            ->whereIn('match_id', $matchIds)
-            ->whereNotNull('points_earned')
-            ->groupBy('participant_id')
-            ->pluck('total_points', 'participant_id');
-
-        return $season->participants()
-            ->with('user')
-            ->get()
-            ->map(function ($participant) use ($pointsByParticipant) {
-                return [
-                    'participant_id' => $participant->id,
-                    'user_name' => $participant->user?->name ?? 'Unbekannt',
-                    'total_points' => (int) ($pointsByParticipant[$participant->id] ?? 0),
-                ];
-            })
-            ->filter(fn (array $entry) => $entry['total_points'] > 0)
-            ->sort(function (array $a, array $b) {
-                return $b['total_points'] <=> $a['total_points']
-                    ?: strcmp($a['user_name'], $b['user_name']);
-            })
-            ->values()
-            ->map(function (array $entry, int $index) {
-                $entry['rank'] = $index + 1;
-
-                return $entry;
-            })
-            ->toArray();
     }
 
     /**
@@ -261,9 +223,9 @@ class MatchdayNewsContextBuilder
      *     changes: list<array{user_name: string, current_rank: int, previous_rank: int|null, rank_change: int|null, total_points: int}>,
      * }
      */
-    private function buildRankChanges(array $previousLeaderboard, array $currentLeaderboard, bool $isFirstMatchday): array
+    private function buildRankChanges(array $previousLeaderboard, array $currentLeaderboard, bool $isFirstRound): array
     {
-        if ($isFirstMatchday || $currentLeaderboard === []) {
+        if ($isFirstRound || $currentLeaderboard === []) {
             return [
                 'hasComparison' => false,
                 'newLeader' => null,
@@ -374,24 +336,24 @@ class MatchdayNewsContextBuilder
      * @return list<string>
      */
     private function buildStorylines(
-        int $matchday,
+        string $roundLabel,
         array $roundHighlights,
         array $tipAnalysis,
         array $rankChanges,
-        bool $isFirstMatchday,
+        bool $isFirstRound,
     ): array {
         $lines = [];
 
         if ($roundHighlights['topScorers'] !== []) {
             $names = collect($roundHighlights['topScorers'])->pluck('user_name')->implode(', ');
             $points = $roundHighlights['topScorers'][0]['round_points'];
-            $lines[] = "Spieltags-Held(en): {$names} mit {$points} Punkten in Spieltag {$matchday}.";
+            $lines[] = "Runden-Held(en): {$names} mit {$points} Punkten in {$roundLabel}.";
         }
 
         if ($roundHighlights['lowScorers'] !== [] && $roundHighlights['participantCount'] > 1) {
             $names = collect($roundHighlights['lowScorers'])->pluck('user_name')->implode(', ');
             $points = $roundHighlights['lowScorers'][0]['round_points'];
-            $lines[] = "Schwacher Spieltag für: {$names} (nur {$points} Punkte).";
+            $lines[] = "Schwache Runde für: {$names} (nur {$points} Punkte).";
         }
 
         if ($roundHighlights['zeroScorers'] !== []) {
@@ -408,8 +370,8 @@ class MatchdayNewsContextBuilder
             $lines[] = "Schwierigstes Spiel: {$match['label']} (Ø {$match['averagePoints']} Punkte, {$match['zeroTips']} Nullpunkte-Tipps).";
         }
 
-        if ($isFirstMatchday) {
-            $lines[] = 'Erster Spieltag der Saison — keine Vergleichsrangliste zum vorherigen Spieltag.';
+        if ($isFirstRound) {
+            $lines[] = 'Erste Wertungsrunde der Saison — keine Vergleichsrangliste zur vorherigen Runde.';
         } elseif ($rankChanges['newLeader'] !== null) {
             $leader = $rankChanges['newLeader'];
             $prev = $leader['previous_rank'] !== null ? " (vorher Platz {$leader['previous_rank']})" : '';

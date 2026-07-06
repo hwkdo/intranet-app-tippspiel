@@ -58,7 +58,7 @@ class Einstellungen extends Component
 
     public ?int $promptPreviewSeasonId = null;
 
-    public ?int $promptPreviewMatchday = null;
+    public ?string $promptPreviewRoundKey = null;
 
     public string $promptPreviewText = '';
 
@@ -154,7 +154,7 @@ class Einstellungen extends Component
             ->first();
 
         $this->promptPreviewSeasonId = $season?->id;
-        $this->promptPreviewMatchday = $this->defaultPreviewMatchday($season);
+        $this->promptPreviewRoundKey = $this->defaultPreviewRoundKey($season);
         $this->promptPreviewText = '';
         $this->promptPreviewError = '';
         $this->showPromptPreviewModal = true;
@@ -166,7 +166,7 @@ class Einstellungen extends Component
             ? Season::find($this->promptPreviewSeasonId)
             : null;
 
-        $this->promptPreviewMatchday = $this->defaultPreviewMatchday($season);
+        $this->promptPreviewRoundKey = $this->defaultPreviewRoundKey($season);
         $this->promptPreviewText = '';
         $this->promptPreviewError = '';
     }
@@ -175,17 +175,17 @@ class Einstellungen extends Component
     {
         $this->validate([
             'promptPreviewSeasonId' => 'required|integer|exists:intranet_app_tippspiel_seasons,id',
-            'promptPreviewMatchday' => 'required|integer|min:1',
+            'promptPreviewRoundKey' => 'required|string|max:100',
         ]);
 
         $season = Season::findOrFail($this->promptPreviewSeasonId);
         $template = filled($this->aiNewsPrompt) ? $this->aiNewsPrompt : null;
 
-        $preview = $newsService->buildPromptPreview($season, $this->promptPreviewMatchday, $template);
+        $preview = $newsService->buildPromptPreview($season, $this->promptPreviewRoundKey, $template);
 
         if ($preview === null) {
             $this->promptPreviewText = '';
-            $this->promptPreviewError = 'Für diesen Spieltag liegen keine abgeschlossenen Spiele vor.';
+            $this->promptPreviewError = 'Für diese Runde liegen keine abgeschlossenen Spiele vor.';
 
             return;
         }
@@ -198,17 +198,17 @@ class Einstellungen extends Component
     {
         $this->validate([
             'promptPreviewSeasonId' => 'required|integer|exists:intranet_app_tippspiel_seasons,id',
-            'promptPreviewMatchday' => 'required|integer|min:1',
+            'promptPreviewRoundKey' => 'required|string|max:100',
         ]);
 
         $season = Season::findOrFail($this->promptPreviewSeasonId);
         $template = filled($this->aiNewsImagePrompt) ? $this->aiNewsImagePrompt : null;
 
-        $preview = $imageService->buildPromptPreview($season, $this->promptPreviewMatchday, $template);
+        $preview = $imageService->buildPromptPreview($season, $this->promptPreviewRoundKey, $template);
 
         if ($preview === null) {
             $this->promptPreviewText = '';
-            $this->promptPreviewError = 'Für diesen Spieltag liegen keine abgeschlossenen Spiele vor.';
+            $this->promptPreviewError = 'Für diese Runde liegen keine abgeschlossenen Spiele vor.';
 
             return;
         }
@@ -234,8 +234,8 @@ class Einstellungen extends Component
             'defaultPrompt' => MatchdayNewsPromptBuilder::DEFAULT_PROMPT,
             'defaultImagePrompt' => MatchdayNewsImagePromptBuilder::DEFAULT_PROMPT,
             'seasons' => Season::query()->orderByDesc('is_active')->orderByDesc('id')->get(),
-            'previewMatchdays' => $previewSeason !== null
-                ? $this->completedMatchdays($previewSeason, $evaluationService)
+            'previewRounds' => $previewSeason !== null
+                ? $this->completedRounds($previewSeason, $evaluationService)
                 : [],
             'usesCustomPrompt' => filled($this->aiNewsPrompt),
             'usesCustomImagePrompt' => filled($this->aiNewsImagePrompt),
@@ -243,34 +243,30 @@ class Einstellungen extends Component
     }
 
     /**
-     * @return list<int>
+     * @return list<array{key: string, label: string}>
      */
-    private function completedMatchdays(Season $season, TipEvaluationService $evaluationService): array
+    private function completedRounds(Season $season, TipEvaluationService $evaluationService): array
     {
-        return $season->matches()
-            ->whereNotNull('matchday')
-            ->distinct()
-            ->orderBy('matchday')
-            ->pluck('matchday')
-            ->filter(fn ($matchday) => $evaluationService->isMatchdayComplete($season, (int) $matchday))
-            ->map(fn ($matchday) => (int) $matchday)
+        return $season->availableRounds(tippableOnly: false)
+            ->filter(fn ($round) => $evaluationService->isRoundComplete($season, $round->key))
+            ->map(fn ($round) => ['key' => $round->key, 'label' => $round->label])
             ->values()
             ->all();
     }
 
-    private function defaultPreviewMatchday(?Season $season): ?int
+    private function defaultPreviewRoundKey(?Season $season): ?string
     {
         if ($season === null) {
             return null;
         }
 
         $evaluationService = app(TipEvaluationService::class);
-        $matchdays = $this->completedMatchdays($season, $evaluationService);
+        $rounds = $this->completedRounds($season, $evaluationService);
 
-        if ($matchdays === []) {
+        if ($rounds === []) {
             return null;
         }
 
-        return $matchdays[array_key_last($matchdays)];
+        return $rounds[array_key_last($rounds)]['key'];
     }
 }

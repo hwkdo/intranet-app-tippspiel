@@ -11,32 +11,30 @@
         </flux:button>
 
         @can('manage-app-tippspiel')
-            @if ($matchday !== null)
-                @if ($existingNews)
-                    <flux:button
-                        size="sm"
-                        variant="outline"
-                        href="{{ route('news.edit', $existingNews) }}"
-                        wire:navigate
-                    >
-                        News bearbeiten
-                        @if (! $existingNews->is_published)
-                            <flux:badge color="yellow" size="sm" class="ml-2">Entwurf</flux:badge>
-                        @endif
-                    </flux:button>
-                @elseif ($isMatchdayComplete)
-                    <flux:button
-                        size="sm"
-                        variant="primary"
-                        wire:click="generateNews"
-                        wire:loading.attr="disabled"
-                    >
-                        <span wire:loading.remove wire:target="generateNews">KI-News erstellen</span>
-                        <span wire:loading wire:target="generateNews">Wird erstellt…</span>
-                    </flux:button>
-                @else
-                    <flux:badge color="zinc">Spieltag noch nicht abgeschlossen</flux:badge>
-                @endif
+            @if ($existingNews)
+                <flux:button
+                    size="sm"
+                    variant="outline"
+                    href="{{ route('news.edit', $existingNews) }}"
+                    wire:navigate
+                >
+                    News bearbeiten
+                    @if (! $existingNews->is_published)
+                        <flux:badge color="yellow" size="sm" class="ml-2">Entwurf</flux:badge>
+                    @endif
+                </flux:button>
+            @elseif ($isRoundComplete)
+                <flux:button
+                    size="sm"
+                    variant="primary"
+                    wire:click="generateNews"
+                    wire:loading.attr="disabled"
+                >
+                    <span wire:loading.remove wire:target="generateNews">KI-News erstellen</span>
+                    <span wire:loading wire:target="generateNews">Wird erstellt…</span>
+                </flux:button>
+            @else
+                <flux:badge color="zinc">Runde noch nicht abgeschlossen</flux:badge>
             @endif
         @endcan
     </div>

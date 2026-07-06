@@ -9,14 +9,14 @@ use Hwkdo\IntranetAppTippspiel\Data\MatchdayNewsContext;
 final class MatchdayNewsPromptBuilder
 {
     public const DEFAULT_PROMPT = <<<'PROMPT'
-        Du bist Sportredakteur eines internen Firmen-Tippspiels. Schreibe einen Artikel im Stil einer Spieltags-Berichterstattung (400–600 Wörter) über den abgeschlossenen {matchday}. Spieltag der Saison "{season_name}".
+        Du bist Sportredakteur eines internen Firmen-Tippspiels. Schreibe einen Artikel im Stil einer Spieltags-Berichterstattung (400–600 Wörter) über die abgeschlossene Runde „{round_label}" der Saison "{season_name}".
 
         Nutze ausschließlich die folgenden Fakten. Erfinde keine Namen, Ergebnisse oder Ranglistenpositionen.
 
         === Spielergebnisse und Tipp-Performance pro Spiel ===
         {match_results}
 
-        === Highlights des Spieltags (Einzelwertung) ===
+        === Highlights der Runde (Einzelwertung) ===
         {round_highlights}
 
         === Tipp-Schwierigkeit der Spiele ===
@@ -43,6 +43,7 @@ final class MatchdayNewsPromptBuilder
     /** @var list<string> */
     public const PLACEHOLDERS = [
         '{matchday}',
+        '{round_label}',
         '{season_name}',
         '{match_results}',
         '{round_highlights}',
@@ -58,12 +59,13 @@ final class MatchdayNewsPromptBuilder
         $template = filled($template) ? $template : self::DEFAULT_PROMPT;
 
         $replacements = [
-            '{matchday}' => (string) $context->matchday,
+            '{matchday}' => $context->roundLabel,
+            '{round_label}' => $context->roundLabel,
             '{season_name}' => $context->seasonName,
             '{match_results}' => $this->formatMatchResults($context->matches),
             '{round_highlights}' => $this->formatRoundHighlights($context->roundHighlights),
             '{match_tip_analysis}' => $this->formatTipAnalysis($context->tipAnalysis),
-            '{leaderboard_changes}' => $this->formatLeaderboardChanges($context->rankChanges, $context->isFirstMatchday),
+            '{leaderboard_changes}' => $this->formatLeaderboardChanges($context->rankChanges, $context->isFirstRound),
             '{current_leaderboard}' => $this->formatLeaderboard($context->currentLeaderboard),
             '{storylines}' => $this->formatStorylines($context->storylines),
             '{leaderboard}' => $this->formatLeaderboard($context->currentLeaderboard),
@@ -107,26 +109,26 @@ final class MatchdayNewsPromptBuilder
     private function formatRoundHighlights(array $highlights): string
     {
         if ($highlights['participantCount'] === 0) {
-            return 'Keine Spieltagswertung verfügbar.';
+            return 'Keine Rundenwertung verfügbar.';
         }
 
         $lines = [
             "Teilnehmer mit Tipp: {$highlights['participantCount']}",
-            "Durchschnittliche Spieltagspunkte: {$highlights['averageRoundPoints']}",
+            "Durchschnittliche Rundenpunkte: {$highlights['averageRoundPoints']}",
         ];
 
         if ($highlights['topScorers'] !== []) {
             $top = collect($highlights['topScorers'])
                 ->map(fn (array $e) => "{$e['user_name']} ({$e['round_points']} Pkt.)")
                 ->implode(', ');
-            $lines[] = "Beste Spieltagsleistung: {$top}";
+            $lines[] = "Beste Rundenleistung: {$top}";
         }
 
         if ($highlights['lowScorers'] !== []) {
             $low = collect($highlights['lowScorers'])
                 ->map(fn (array $e) => "{$e['user_name']} ({$e['round_points']} Pkt.)")
                 ->implode(', ');
-            $lines[] = "Schwächste Spieltagsleistung: {$low}";
+            $lines[] = "Schwächste Rundenleistung: {$low}";
         }
 
         if ($highlights['zeroScorers'] !== []) {
@@ -175,10 +177,10 @@ final class MatchdayNewsPromptBuilder
      *     changes: list<array{user_name: string, current_rank: int, previous_rank: int|null, rank_change: int|null, total_points: int}>,
      * }  $rankChanges
      */
-    private function formatLeaderboardChanges(array $rankChanges, bool $isFirstMatchday): string
+    private function formatLeaderboardChanges(array $rankChanges, bool $isFirstRound): string
     {
-        if ($isFirstMatchday) {
-            return 'Erster Spieltag — es gibt noch keinen Vergleich zur vorherigen Gesamtrangliste.';
+        if ($isFirstRound) {
+            return 'Erste Wertungsrunde — es gibt noch keinen Vergleich zur vorherigen Gesamtrangliste.';
         }
 
         if (! $rankChanges['hasComparison']) {

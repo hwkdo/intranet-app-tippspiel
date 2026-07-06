@@ -128,24 +128,103 @@ class TipEvaluationService
     }
 
     /**
+     * Gibt zurück, ob alle Spiele einer Runde abgeschlossen sind.
+     */
+    public function isRoundComplete(Season $season, string $roundKey): bool
+    {
+        $matches = TippspielMatch::query()
+            ->where('season_id', $season->id)
+            ->forRoundKey($roundKey)
+            ->get();
+
+        if ($matches->isEmpty()) {
+            return false;
+        }
+
+        return $matches->every(fn (TippspielMatch $match) => $match->isFinished());
+    }
+
+    /**
      * Gibt zurück, ob alle Spiele eines Spieltages abgeschlossen sind.
      */
     public function isMatchdayComplete(Season $season, int $matchday): bool
     {
-        $total = TippspielMatch::where('season_id', $season->id)
-            ->where('matchday', $matchday)
-            ->count();
+        return $this->isRoundComplete($season, "md:{$matchday}");
+    }
 
-        if ($total === 0) {
-            return false;
+    public function previousRoundKey(Season $season, string $roundKey): ?string
+    {
+        $rounds = $season->availableRounds(tippableOnly: false);
+        $index = $rounds->search(fn ($round) => $round->key === $roundKey);
+
+        if ($index === false || $index === 0) {
+            return null;
         }
 
-        $finished = TippspielMatch::where('season_id', $season->id)
-            ->where('matchday', $matchday)
-            ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
-            ->count();
+        return $rounds[$index - 1]->key;
+    }
 
-        return $total === $finished;
+    /**
+     * @return array<int, array{rank: int, participant_id: int, user_name: string, total_points: int}>
+     */
+    public function leaderboardUpToRound(Season $season, string $roundKey): array
+    {
+        $rounds = $season->availableRounds(tippableOnly: false);
+        $currentRound = $rounds->firstWhere('key', $roundKey);
+
+        if ($currentRound === null) {
+            return [];
+        }
+
+        $includedRoundKeys = $rounds
+            ->filter(fn ($round) => $round->sortOrder <= $currentRound->sortOrder)
+            ->pluck('key');
+
+        $matchIds = collect();
+
+        foreach ($includedRoundKeys as $includedRoundKey) {
+            $matchIds = $matchIds->merge(
+                TippspielMatch::query()
+                    ->where('season_id', $season->id)
+                    ->forRoundKey($includedRoundKey)
+                    ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
+                    ->pluck('id')
+            );
+        }
+
+        if ($matchIds->isEmpty()) {
+            return [];
+        }
+
+        $pointsByParticipant = Tip::query()
+            ->selectRaw('participant_id, SUM(points_earned) as total_points')
+            ->whereIn('match_id', $matchIds)
+            ->whereNotNull('points_earned')
+            ->groupBy('participant_id')
+            ->pluck('total_points', 'participant_id');
+
+        return $season->participants()
+            ->with('user')
+            ->get()
+            ->map(function ($participant) use ($pointsByParticipant) {
+                return [
+                    'participant_id' => $participant->id,
+                    'user_name' => $participant->user?->name ?? 'Unbekannt',
+                    'total_points' => (int) ($pointsByParticipant[$participant->id] ?? 0),
+                ];
+            })
+            ->filter(fn (array $entry) => $entry['total_points'] > 0)
+            ->sort(function (array $a, array $b) {
+                return $b['total_points'] <=> $a['total_points']
+                    ?: strcmp($a['user_name'], $b['user_name']);
+            })
+            ->values()
+            ->map(function (array $entry, int $index) {
+                $entry['rank'] = $index + 1;
+
+                return $entry;
+            })
+            ->toArray();
     }
 
     /**
@@ -397,7 +476,7 @@ class TipEvaluationService
                     'round_label' => $round->label,
                     'match_count' => $matches->count(),
                     'finished_count' => $finishedCount,
-                    'is_complete' => $matches->isNotEmpty() && $finishedCount === $matches->count(),
+                    'is_complete' => $this->isRoundComplete($season, $round->key),
                     'has_evaluations' => $matchIds->isNotEmpty() && Tip::query()
                         ->whereIn('match_id', $matchIds)
                         ->whereNotNull('points_earned')

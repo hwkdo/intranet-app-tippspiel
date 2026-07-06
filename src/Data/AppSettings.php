@@ -24,7 +24,7 @@ class AppSettings extends BaseAppSettings
         #[Description('News automatisch veröffentlichen')]
         public bool $aiNewsAutoPublish = false,
 
-        #[Description('Prompt-Vorlage für KI-News (Platzhalter: {matchday}, {season_name}, {match_results}, {round_highlights}, {match_tip_analysis}, {leaderboard_changes}, {current_leaderboard}, {storylines}, {leaderboard})')]
+        #[Description('Prompt-Vorlage für KI-News (Platzhalter: {matchday}, {round_label}, {season_name}, {match_results}, {round_highlights}, {match_tip_analysis}, {leaderboard_changes}, {current_leaderboard}, {storylines}, {leaderboard})')]
         public string $aiNewsPrompt = '',
 
         #[Description('Kategorie-ID für automatisch erstellte News (0 = nicht gesetzt)')]
@@ -39,7 +39,7 @@ class AppSettings extends BaseAppSettings
         #[Description('Modell für KI-Titelbilder (z. B. gpt-image-1 oder dall-e-3)')]
         public string $aiNewsImageModel = '',
 
-        #[Description('Prompt-Vorlage für KI-Titelbilder (Platzhalter: {season_name}, {matchday}, {featured_matches}, {team_names})')]
+        #[Description('Prompt-Vorlage für KI-Titelbilder (Platzhalter: {season_name}, {matchday}, {round_label}, {featured_matches}, {team_names})')]
         public string $aiNewsImagePrompt = '',
 
         #[Description('Standard-Punkte für exaktes Ergebnis')]

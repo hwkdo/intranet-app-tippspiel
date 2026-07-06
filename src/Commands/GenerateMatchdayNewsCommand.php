@@ -7,22 +7,35 @@ namespace Hwkdo\IntranetAppTippspiel\Commands;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Services\MatchdayNewsService;
 use Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService;
+use Hwkdo\IntranetAppTippspiel\Support\RoundKey;
 use Illuminate\Console\Command;
 
 class GenerateMatchdayNewsCommand extends Command
 {
     protected $signature = 'tippspiel:generate-news
                             {season : ID der Saison}
-                            {matchday : Spieltag-Nummer}';
+                            {round : Runden-Slug (z. B. md-1 oder stage-LAST_32)}';
 
-    protected $description = 'Generiert einen KI-Newsartikel für den abgeschlossenen Spieltag';
+    protected $description = 'Generiert einen KI-Newsartikel für die abgeschlossene Runde';
 
     public function handle(
         MatchdayNewsService $newsService,
         TipEvaluationService $evaluationService,
     ): int {
         $seasonId = (int) $this->argument('season');
-        $matchday = (int) $this->argument('matchday');
+        $roundSlug = (string) $this->argument('round');
+
+        if (ctype_digit($roundSlug)) {
+            $roundSlug = 'md-'.$roundSlug;
+        }
+
+        try {
+            $roundKey = RoundKey::fromSlug($roundSlug);
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
 
         $season = Season::find($seasonId);
 
@@ -32,21 +45,29 @@ class GenerateMatchdayNewsCommand extends Command
             return self::FAILURE;
         }
 
-        if (! $evaluationService->isMatchdayComplete($season, $matchday)) {
-            $this->warn("Spieltag {$matchday} ist noch nicht vollständig abgeschlossen.");
+        $round = $season->availableRounds(tippableOnly: false)->firstWhere('key', $roundKey);
+
+        if ($round === null) {
+            $this->error("Runde „{$roundSlug}“ existiert nicht in Saison „{$season->name}“.");
 
             return self::FAILURE;
         }
 
-        $existingNews = $newsService->findExistingNews($season, $matchday);
+        if (! $evaluationService->isRoundComplete($season, $roundKey)) {
+            $this->warn("{$round->label} ist noch nicht vollständig abgeschlossen.");
 
-        $this->info("Generiere News für {$season->name} – Spieltag {$matchday}...");
+            return self::FAILURE;
+        }
+
+        $existingNews = $newsService->findExistingNews($season, $roundKey);
+
+        $this->info("Generiere News für {$season->name} – {$round->label}...");
 
         try {
-            $news = $newsService->generateAndPersist($season, $matchday, isAutomatic: false);
+            $news = $newsService->generateAndPersist($season, $roundKey, isAutomatic: false);
 
             if ($news === null) {
-                $this->warn($newsService->explainGenerationFailure($season, $matchday));
+                $this->warn($newsService->explainGenerationFailure($season, $roundKey));
 
                 return self::FAILURE;
             }

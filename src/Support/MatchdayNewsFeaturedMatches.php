@@ -15,11 +15,11 @@ final class MatchdayNewsFeaturedMatches
     /**
      * @return list<array{home: string, away: string, homeScore: int, awayScore: int, homeCrestUrl: string|null, awayCrestUrl: string|null}>
      */
-    public function forMatchday(Season $season, int $matchday): array
+    public function forRound(Season $season, string $roundKey): array
     {
         return TippspielMatch::query()
             ->where('season_id', $season->id)
-            ->where('matchday', $matchday)
+            ->forRoundKey($roundKey)
             ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
             ->whereNotNull('home_score')
             ->whereNotNull('away_score')

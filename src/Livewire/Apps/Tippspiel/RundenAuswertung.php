@@ -34,16 +34,10 @@ class RundenAuswertung extends Component
 
     public string $wertung = 'einzel';
 
-    public ?int $matchday = null;
-
     public function mount(Season $season, string $roundSlug): void
     {
         $this->season = $season;
         $this->roundKey = RoundKey::fromSlug($roundSlug);
-
-        if (preg_match('/^md:(\d+)$/', $this->roundKey, $matches) === 1) {
-            $this->matchday = (int) $matches[1];
-        }
 
         $round = $season->availableRounds(tippableOnly: false)
             ->firstWhere('key', $this->roundKey);
@@ -61,20 +55,10 @@ class RundenAuswertung extends Component
     ): void {
         $this->authorize('manage-app-tippspiel');
 
-        if ($this->matchday === null) {
+        if (! $evaluationService->isRoundComplete($this->season, $this->roundKey)) {
             Flux::toast(
                 heading: 'KI-News',
-                text: 'KI-News können nur für Spieltage erstellt werden.',
-                variant: 'warning',
-            );
-
-            return;
-        }
-
-        if (! $evaluationService->isMatchdayComplete($this->season, $this->matchday)) {
-            Flux::toast(
-                heading: 'KI-News',
-                text: 'Der Spieltag ist noch nicht vollständig abgeschlossen.',
+                text: 'Die Runde ist noch nicht vollständig abgeschlossen.',
                 variant: 'warning',
             );
 
@@ -83,17 +67,17 @@ class RundenAuswertung extends Component
 
         Log::info('Tippspiel: Manuelle KI-News-Generierung gestartet.', [
             'season_id' => $this->season->id,
-            'matchday' => $this->matchday,
+            'round_key' => $this->roundKey,
             'user_id' => auth()->id(),
         ]);
 
         try {
-            $news = $newsService->generateAndPersist($this->season, $this->matchday, isAutomatic: false);
+            $news = $newsService->generateAndPersist($this->season, $this->roundKey, isAutomatic: false);
 
             if ($news === null) {
                 Flux::toast(
                     heading: 'KI-News fehlgeschlagen',
-                    text: $newsService->explainGenerationFailure($this->season, $this->matchday),
+                    text: $newsService->explainGenerationFailure($this->season, $this->roundKey),
                     variant: 'warning',
                 );
 
@@ -110,7 +94,7 @@ class RundenAuswertung extends Component
         } catch (\Throwable $e) {
             Log::error('Tippspiel: Manuelle KI-News-Generierung fehlgeschlagen.', [
                 'season_id' => $this->season->id,
-                'matchday' => $this->matchday,
+                'round_key' => $this->roundKey,
                 'error' => $e->getMessage(),
             ]);
 
@@ -153,12 +137,8 @@ class RundenAuswertung extends Component
         $user = auth()->user();
         $userModel = TippspielModels::user();
 
-        $existingNews = $this->matchday !== null
-            ? $newsService->findExistingNews($this->season, $this->matchday)
-            : null;
-
-        $isMatchdayComplete = $this->matchday !== null
-            && $evaluationService->isMatchdayComplete($this->season, $this->matchday);
+        $existingNews = $newsService->findExistingNews($this->season, $this->roundKey);
+        $isRoundComplete = $evaluationService->isRoundComplete($this->season, $this->roundKey);
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.runden-auswertung', [
             'matches' => $matches,
@@ -170,7 +150,7 @@ class RundenAuswertung extends Component
             'currentUserGvpId' => $user instanceof $userModel ? $user->gvp_id : null,
             'evaluationService' => $evaluationService,
             'existingNews' => $existingNews,
-            'isMatchdayComplete' => $isMatchdayComplete,
+            'isRoundComplete' => $isRoundComplete,
         ]);
     }
 }

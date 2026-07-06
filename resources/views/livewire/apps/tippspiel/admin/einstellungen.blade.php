@@ -106,6 +106,7 @@
                             @endif
                             Platzhalter:
                             <code>{matchday}</code>,
+                            <code>{round_label}</code>,
                             <code>{season_name}</code>,
                             <code>{match_results}</code>,
                             <code>{round_highlights}</code>,
@@ -236,12 +237,12 @@
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Spieltag</flux:label>
-                    <flux:select wire:model="promptPreviewMatchday">
-                        @forelse ($previewMatchdays as $matchday)
-                            <flux:select.option :value="$matchday">{{ $matchday }}. Spieltag</flux:select.option>
+                    <flux:label>Runde</flux:label>
+                    <flux:select wire:model="promptPreviewRoundKey">
+                        @forelse ($previewRounds as $round)
+                            <flux:select.option :value="$round['key']">{{ $round['label'] }}</flux:select.option>
                         @empty
-                            <flux:select.option value="" disabled>Keine abgeschlossenen Spieltage</flux:select.option>
+                            <flux:select.option value="" disabled>Keine abgeschlossenen Runden</flux:select.option>
                         @endforelse
                     </flux:select>
                 </flux:field>
@@ -252,7 +253,7 @@
                     variant="outline"
                     wire:click="generatePromptPreview"
                     wire:loading.attr="disabled"
-                    :disabled="empty($previewMatchdays)"
+                    :disabled="empty($previewRounds)"
                 >
                     <span wire:loading.remove wire:target="generatePromptPreview">Artikel-Prompt</span>
                     <span wire:loading wire:target="generatePromptPreview">Wird erstellt…</span>
@@ -261,7 +262,7 @@
                     variant="outline"
                     wire:click="generateImagePromptPreview"
                     wire:loading.attr="disabled"
-                    :disabled="empty($previewMatchdays)"
+                    :disabled="empty($previewRounds)"
                 >
                     <span wire:loading.remove wire:target="generateImagePromptPreview">Bild-Prompt</span>
                     <span wire:loading wire:target="generateImagePromptPreview">Wird erstellt…</span>

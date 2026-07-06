@@ -12,16 +12,16 @@ final class MatchdayNewsImagePromptBuilder
         Erstelle ein professionelles Sport-News-Titelbild für ein internes Firmen-Fußball-Tippspiel im Format 16:9.
 
         Saison: {season_name}
-        Spieltag: {matchday}
+        Runde: {round_label}
 
-        Top-Begegnungen dieses Spieltags:
+        Top-Begegnungen dieser Runde:
         {featured_matches}
 
         Teams (offizielle Wappen werden nach der Generierung unten auf dem Bild platziert):
         {team_names}
 
         Anforderungen:
-        - Saisonname und Spieltagsnummer als gut lesbare Typografie prominent platzieren
+        - Saisonname und Rundenbezeichnung als gut lesbare Typografie prominent platzieren
         - Unteres Drittel des Bildes frei/unaufdringlich halten — dort werden echte Team-Wappen eingeblendet
         - Dynamischer Sport-Sender-Stil, modern und energetisch, geeignet als News-Header
         - Keine erfundenen Vereinslogos in der KI-Grafik — nur Typografie und Stimmung
@@ -33,7 +33,7 @@ final class MatchdayNewsImagePromptBuilder
      */
     public function build(
         Season $season,
-        int $matchday,
+        string $roundLabel,
         array $featuredMatches,
         ?string $template = null,
     ): string {
@@ -41,7 +41,8 @@ final class MatchdayNewsImagePromptBuilder
 
         $replacements = [
             '{season_name}' => $season->name,
-            '{matchday}' => (string) $matchday,
+            '{matchday}' => $roundLabel,
+            '{round_label}' => $roundLabel,
             '{featured_matches}' => $this->formatFeaturedMatches($featuredMatches),
             '{team_names}' => $this->formatTeamNames($featuredMatches),
         ];
