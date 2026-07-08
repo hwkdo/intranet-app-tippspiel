@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel;
 
-use Hwkdo\IntranetAppTippspiel\Contracts\FootballDataProviderInterface;
+use Hwkdo\IntranetAppTippspiel\Ai\GatewayTippspielNewsImagePort;
+use Hwkdo\IntranetAppTippspiel\Ai\GatewayTippspielNewsPort;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsImagePortInterface;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
-use Hwkdo\IntranetAppTippspiel\Enums\AiNewsProvider;
-use Hwkdo\IntranetAppTippspiel\Models\TippspielSettings;
 use Hwkdo\IntranetAppTippspiel\Providers\FootballDataOrgProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Livewire\Livewire;
@@ -24,25 +23,8 @@ class IntranetAppTippspielServiceProvider extends PackageServiceProvider
 
         $this->app->singleton(FootballDataProviderInterface::class, FootballDataOrgProvider::class);
 
-        $this->app->bind(TippspielAiNewsPortInterface::class, function ($app): TippspielAiNewsPortInterface {
-            $settings = TippspielSettings::resolvedAppSettings();
-            $provider = AiNewsProvider::tryFrom($settings->aiNewsProvider) ?? AiNewsProvider::Langdock;
-
-            return match ($provider) {
-                AiNewsProvider::OpenWebUi => $app->make(\Hwkdo\IntranetAppTippspiel\Ai\OpenWebUiNewsPort::class),
-                default => $app->make(\Hwkdo\IntranetAppTippspiel\Ai\LangdockNewsPort::class),
-            };
-        });
-
-        $this->app->bind(TippspielAiNewsImagePortInterface::class, function ($app): TippspielAiNewsImagePortInterface {
-            $settings = TippspielSettings::resolvedAppSettings();
-            $provider = AiNewsProvider::tryFrom($settings->aiNewsProvider) ?? AiNewsProvider::Langdock;
-
-            return match ($provider) {
-                AiNewsProvider::OpenWebUi => $app->make(\Hwkdo\IntranetAppTippspiel\Ai\UnsupportedNewsImagePort::class),
-                default => $app->make(\Hwkdo\IntranetAppTippspiel\Ai\LangdockNewsImagePort::class),
-            };
-        });
+        $this->app->bind(TippspielAiNewsPortInterface::class, GatewayTippspielNewsPort::class);
+        $this->app->bind(TippspielAiNewsImagePortInterface::class, GatewayTippspielNewsImagePort::class);
     }
 
     public function configurePackage(Package $package): void

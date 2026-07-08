@@ -14,13 +14,13 @@ Route::middleware(['web', 'auth', 'can:see-app-tippspiel'])->group(function () {
         ->where('roundSlug', 'md-\d+|stage-.+')
         ->name('apps.tippspiel.auswertung');
 
-    Route::livewire('apps/tippspiel/admin', 'intranet-app-tippspiel::apps.tippspiel.admin.index')
+    Route::livewire('apps/tippspiel/admin', \Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel\Admin\Index::class)
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.index');
     Route::livewire('apps/tippspiel/admin/saisons', 'intranet-app-tippspiel::apps.tippspiel.admin.saisons')
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.saisons');
-    Route::livewire('apps/tippspiel/admin/einstellungen', 'intranet-app-tippspiel::apps.tippspiel.admin.einstellungen')
+    Route::redirect('apps/tippspiel/admin/einstellungen', '/apps/tippspiel/admin?activeTab=einstellungen')
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.einstellungen');
 });

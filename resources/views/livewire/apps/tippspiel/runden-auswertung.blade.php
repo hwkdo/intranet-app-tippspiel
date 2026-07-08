@@ -11,6 +11,7 @@
         </flux:button>
 
         @can('manage-app-tippspiel')
+            <div class="flex flex-wrap items-center gap-2" @if ($existingNews) wire:key="tippspiel-news-actions-{{ $existingNews->id }}" @endif>
             @if ($existingNews)
                 <flux:button
                     size="sm"
@@ -23,19 +24,30 @@
                         <flux:badge color="yellow" size="sm" class="ml-2">Entwurf</flux:badge>
                     @endif
                 </flux:button>
+                @if ($isRoundComplete)
+                    <flux:button
+                        size="sm"
+                        variant="primary"
+                        wire:click="regenerateNews"
+                        :disabled="$isRegeneratingNews"
+                        wire:confirm="Die bestehende KI-News wird gelöscht und neu erstellt. Fortfahren?"
+                    >
+                        {{ $isRegeneratingNews ? 'Wird generiert…' : 'News neu generieren' }}
+                    </flux:button>
+                @endif
             @elseif ($isRoundComplete)
                 <flux:button
                     size="sm"
                     variant="primary"
                     wire:click="generateNews"
-                    wire:loading.attr="disabled"
+                    :disabled="$isGeneratingNews"
                 >
-                    <span wire:loading.remove wire:target="generateNews">KI-News erstellen</span>
-                    <span wire:loading wire:target="generateNews">Wird erstellt…</span>
+                    {{ $isGeneratingNews ? 'Wird erstellt…' : 'KI-News erstellen' }}
                 </flux:button>
             @else
                 <flux:badge color="zinc">Runde noch nicht abgeschlossen</flux:badge>
             @endif
+            </div>
         @endcan
     </div>
 

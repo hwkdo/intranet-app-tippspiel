@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Hwkdo\IntranetAppTippspiel\Services;
 
 use App\Models\News;
+use Hwkdo\IntranetAppBase\Contracts\AiConfigResolverInterface;
+use Hwkdo\IntranetAppBase\Enums\AiCapability;
+use Hwkdo\IntranetAppBase\Enums\AiProvider;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
 use Hwkdo\IntranetAppTippspiel\Enums\MatchStatus;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
@@ -134,12 +137,15 @@ class MatchdayNewsService
 
         $prompt = $this->promptBuilder->build($context, $settings->resolvedAiNewsPrompt());
 
+        $resolvedAi = app(AiConfigResolverInterface::class)->resolve('tippspiel', AiCapability::Text);
+
         Log::info('Tippspiel: KI-News-Prompt erstellt, rufe Provider auf.', [
             'season' => $season->name,
             'round_key' => $roundKey,
             'round_label' => $roundLabel,
-            'provider' => $settings->aiNewsProvider,
-            'model' => $settings->aiNewsModel,
+            'provider' => $resolvedAi->provider->value,
+            'model' => $resolvedAi->model,
+            'config_source' => $resolvedAi->source->value,
         ]);
 
         $content = $this->aiPort->generateMatchdayNews($prompt);
@@ -148,8 +154,8 @@ class MatchdayNewsService
             Log::warning('Tippspiel: KI-Provider lieferte keinen Artikeltext.', [
                 'season' => $season->name,
                 'round_key' => $roundKey,
-                'provider' => $settings->aiNewsProvider,
-                'model' => $settings->aiNewsModel,
+                'provider' => $resolvedAi->provider->value,
+                'model' => $resolvedAi->model,
             ]);
 
             return null;
@@ -184,6 +190,25 @@ class MatchdayNewsService
         $this->imageService->generateAndAttach($news, $season, $roundKey);
 
         return $news;
+    }
+
+    /**
+     * Ersetzt eine vorhandene KI-News für die Runde durch eine neu generierte Version.
+     */
+    public function regenerateAndPersist(Season $season, string $roundKey): ?News
+    {
+        $existing = $this->findExistingNews($season, $roundKey);
+
+        if ($existing !== null) {
+            Log::info('Tippspiel: Vorhandene KI-News wird für Neu-Generierung gelöscht.', [
+                'news_id' => $existing->id,
+                'round_key' => $roundKey,
+            ]);
+
+            $existing->delete();
+        }
+
+        return $this->generateAndPersist($season, $roundKey, isAutomatic: false);
     }
 
     public function explainGenerationFailure(Season $season, string $roundKey, bool $isAutomatic = false): string
@@ -229,7 +254,9 @@ class MatchdayNewsService
             return "Keine auswertbaren Ergebnisse für {$roundLabel} ({$finished}/{$total} Spiele abgeschlossen mit Ergebnis). Zuerst Tipps auswerten?";
         }
 
-        if ($settings->aiNewsProvider === 'langdock' && ! filled(config('services.langdock.api_key'))) {
+        $resolvedAi = app(AiConfigResolverInterface::class)->resolve('tippspiel', AiCapability::Text);
+
+        if ($resolvedAi->provider === AiProvider::Langdock && ! filled(config('services.langdock.api_key'))) {
             return 'LANGDOCK_API_KEY fehlt in der Server-Konfiguration (services.langdock.api_key).';
         }
 

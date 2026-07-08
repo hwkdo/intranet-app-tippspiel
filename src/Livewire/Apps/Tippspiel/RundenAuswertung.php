@@ -9,6 +9,7 @@ use Hwkdo\IntranetAppTippspiel\Models\Participant;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
+use Hwkdo\IntranetAppTippspiel\Models\TippspielSettings;
 use Hwkdo\IntranetAppTippspiel\Services\MatchdayNewsService;
 use Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService;
 use Hwkdo\IntranetAppTippspiel\Support\RoundKey;
@@ -33,6 +34,10 @@ class RundenAuswertung extends Component
     public string $roundLabel;
 
     public string $wertung = 'einzel';
+
+    public bool $isGeneratingNews = false;
+
+    public bool $isRegeneratingNews = false;
 
     public function mount(Season $season, string $roundSlug): void
     {
@@ -71,6 +76,8 @@ class RundenAuswertung extends Component
             'user_id' => auth()->id(),
         ]);
 
+        $this->isGeneratingNews = true;
+
         try {
             $news = $newsService->generateAndPersist($this->season, $this->roundKey, isAutomatic: false);
 
@@ -85,11 +92,15 @@ class RundenAuswertung extends Component
             }
 
             $status = $news->is_published ? 'veröffentlicht' : 'als Entwurf gespeichert';
+            $settings = TippspielSettings::resolvedAppSettings();
+            $imageMissing = $settings->aiNewsImageAutoGenerate && ! $news->fresh()->hasTitleImage();
 
             Flux::toast(
-                heading: 'KI-News erstellt',
-                text: "\"{$news->title}\" {$status}.",
-                variant: 'success',
+                heading: $imageMissing ? 'KI-News erstellt (ohne Titelbild)' : 'KI-News erstellt',
+                text: $imageMissing
+                    ? "\"{$news->title}\" {$status}. Das KI-Titelbild konnte nicht erzeugt werden – Details in storage/logs/laravel.log."
+                    : "\"{$news->title}\" {$status}.",
+                variant: $imageMissing ? 'warning' : 'success',
             );
         } catch (\Throwable $e) {
             Log::error('Tippspiel: Manuelle KI-News-Generierung fehlgeschlagen.', [
@@ -103,6 +114,73 @@ class RundenAuswertung extends Component
                 text: $e->getMessage(),
                 variant: 'danger',
             );
+        } finally {
+            $this->isGeneratingNews = false;
+        }
+    }
+
+    public function regenerateNews(
+        MatchdayNewsService $newsService,
+        TipEvaluationService $evaluationService,
+    ): void {
+        $this->authorize('manage-app-tippspiel');
+
+        if (! $evaluationService->isRoundComplete($this->season, $this->roundKey)) {
+            Flux::toast(
+                heading: 'KI-News',
+                text: 'Die Runde ist noch nicht vollständig abgeschlossen.',
+                variant: 'warning',
+            );
+
+            return;
+        }
+
+        Log::info('Tippspiel: Manuelle KI-News-Neu-Generierung gestartet.', [
+            'season_id' => $this->season->id,
+            'round_key' => $this->roundKey,
+            'user_id' => auth()->id(),
+        ]);
+
+        $this->isRegeneratingNews = true;
+
+        try {
+            $news = $newsService->regenerateAndPersist($this->season, $this->roundKey);
+
+            if ($news === null) {
+                Flux::toast(
+                    heading: 'KI-News fehlgeschlagen',
+                    text: $newsService->explainGenerationFailure($this->season, $this->roundKey),
+                    variant: 'warning',
+                );
+
+                return;
+            }
+
+            $status = $news->is_published ? 'veröffentlicht' : 'als Entwurf gespeichert';
+            $settings = TippspielSettings::resolvedAppSettings();
+            $imageMissing = $settings->aiNewsImageAutoGenerate && ! $news->fresh()->hasTitleImage();
+
+            Flux::toast(
+                heading: $imageMissing ? 'KI-News neu generiert (ohne Titelbild)' : 'KI-News neu generiert',
+                text: $imageMissing
+                    ? "\"{$news->title}\" {$status}. Das KI-Titelbild konnte nicht erzeugt werden – Details in storage/logs/laravel.log."
+                    : "\"{$news->title}\" {$status}.",
+                variant: $imageMissing ? 'warning' : 'success',
+            );
+        } catch (\Throwable $e) {
+            Log::error('Tippspiel: Manuelle KI-News-Neu-Generierung fehlgeschlagen.', [
+                'season_id' => $this->season->id,
+                'round_key' => $this->roundKey,
+                'error' => $e->getMessage(),
+            ]);
+
+            Flux::toast(
+                heading: 'KI-News Fehler',
+                text: $e->getMessage(),
+                variant: 'danger',
+            );
+        } finally {
+            $this->isRegeneratingNews = false;
         }
     }
 

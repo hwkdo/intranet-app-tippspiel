@@ -32,8 +32,7 @@
     }
 
     $defaultNavItems[] = ['type' => 'separator', 'label' => 'Admin', 'permission' => 'manage-app-tippspiel'];
-    $defaultNavItems[] = ['label' => 'Saisons verwalten', 'href' => route('apps.tippspiel.admin.saisons'), 'icon' => 'calendar', 'description' => 'Saisons anlegen und aktivieren', 'permission' => 'manage-app-tippspiel'];
-    $defaultNavItems[] = ['label' => 'Einstellungen', 'href' => route('apps.tippspiel.admin.einstellungen'), 'icon' => 'cog-6-tooth', 'description' => 'Punkte und KI-Provider konfigurieren', 'permission' => 'manage-app-tippspiel'];
+    $defaultNavItems[] = ['label' => 'Admin', 'href' => route('apps.tippspiel.admin.index'), 'icon' => 'wrench-screwdriver', 'description' => 'Saisons, Einstellungen und KI', 'permission' => 'manage-app-tippspiel'];
 
     $navItems = !empty($navItems) ? $navItems : $defaultNavItems;
 @endphp

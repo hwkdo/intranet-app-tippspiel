@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel\Services;
 
+use App\Support\NewsMediaDisk;
 use App\Models\News;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsImagePortInterface;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
@@ -60,12 +61,13 @@ class MatchdayNewsImageService
             $news->addMedia($imagePath)
                 ->usingName('title')
                 ->withResponsiveImages()
-                ->toMediaCollection('title', config('media-library.news_disk'));
+                ->toMediaCollection('title', NewsMediaDisk::name());
 
             Log::info('Tippspiel: KI-Titelbild angehängt.', [
                 'news_id' => $news->id,
                 'round_key' => $roundKey,
                 'crest_count' => count($crestUrls),
+                'disk' => NewsMediaDisk::name(),
             ]);
 
             return true;

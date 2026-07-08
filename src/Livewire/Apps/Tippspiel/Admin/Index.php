@@ -8,12 +8,16 @@ use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('components.layouts.app')]
 #[Title('Tippspiel Admin')]
 class Index extends Component
 {
+    #[Url]
+    public string $activeTab = 'uebersicht';
+
     public function render(): View
     {
         $stats = [
