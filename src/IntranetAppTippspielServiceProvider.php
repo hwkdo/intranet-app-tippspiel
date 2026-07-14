@@ -6,6 +6,7 @@ namespace Hwkdo\IntranetAppTippspiel;
 
 use Hwkdo\IntranetAppTippspiel\Ai\GatewayTippspielNewsImagePort;
 use Hwkdo\IntranetAppTippspiel\Ai\GatewayTippspielNewsPort;
+use Hwkdo\IntranetAppTippspiel\Contracts\FootballDataProviderInterface;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsImagePortInterface;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
 use Hwkdo\IntranetAppTippspiel\Providers\FootballDataOrgProvider;
