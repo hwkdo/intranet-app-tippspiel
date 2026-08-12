@@ -7,11 +7,7 @@
             <flux:callout.heading>Saison beendet</flux:callout.heading>
             <flux:callout.text>
                 Diese Saison ist archiviert. Tipps können nicht mehr geändert werden.
-                <a href="{{ route('apps.tippspiel.archiv') }}" wire:navigate class="underline">Zum Archiv</a>
-                ·
-                <a href="{{ route('apps.tippspiel.rangliste', $season) }}" wire:navigate class="underline">Rangliste</a>
-                ·
-                <a href="{{ route('apps.tippspiel.auswertungen', $season) }}" wire:navigate class="underline">Auswertungen</a>
+                <a href="{{ route('apps.tippspiel.archiv', $season) }}" wire:navigate class="underline">Zur Archiv-Ansicht</a>
             </flux:callout.text>
         </flux:callout>
     @endif

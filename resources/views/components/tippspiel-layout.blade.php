@@ -39,12 +39,15 @@
 
     if (\Hwkdo\IntranetAppTippspiel\Models\Season::where('is_active', false)->exists()) {
         $defaultNavItems[] = ['type' => 'separator', 'label' => 'Archiv'];
-        $defaultNavItems[] = [
-            'label' => 'Archiv',
-            'href' => route('apps.tippspiel.archiv'),
-            'icon' => 'archive-box',
-            'description' => 'Vergangene Saisons',
-        ];
+
+        foreach (\Hwkdo\IntranetAppTippspiel\Models\Season::archived() as $archivedSeason) {
+            $defaultNavItems[] = [
+                'label' => $archivedSeason->name,
+                'href' => route('apps.tippspiel.archiv', $archivedSeason),
+                'icon' => 'archive-box',
+                'description' => 'Rangliste und Auswertungen',
+            ];
+        }
     }
 
     $defaultNavItems[] = ['type' => 'separator', 'label' => 'Admin', 'permission' => 'manage-app-tippspiel'];

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['web', 'auth', 'can:see-app-tippspiel'])->group(function () {
     Route::livewire('apps/tippspiel', 'intranet-app-tippspiel::apps.tippspiel.dashboard')->name('apps.tippspiel.index');
     Route::livewire('apps/tippspiel/ewige-rangliste', 'intranet-app-tippspiel::apps.tippspiel.ewige-rangliste')->name('apps.tippspiel.ewige-rangliste');
-    Route::livewire('apps/tippspiel/archiv', 'intranet-app-tippspiel::apps.tippspiel.archiv')->name('apps.tippspiel.archiv');
+    Route::livewire('apps/tippspiel/archiv/{season}', 'intranet-app-tippspiel::apps.tippspiel.archiv')->name('apps.tippspiel.archiv');
     Route::livewire('apps/tippspiel/tippen/{season}', 'intranet-app-tippspiel::apps.tippspiel.tippen')->name('apps.tippspiel.tippen');
     Route::livewire('apps/tippspiel/rangliste/{season}', 'intranet-app-tippspiel::apps.tippspiel.rangliste')->name('apps.tippspiel.rangliste');
     Route::livewire('apps/tippspiel/ergebnisse/{season}', 'intranet-app-tippspiel::apps.tippspiel.ergebnisse')->name('apps.tippspiel.ergebnisse');
