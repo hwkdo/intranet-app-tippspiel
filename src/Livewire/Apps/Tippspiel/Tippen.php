@@ -28,7 +28,7 @@ class Tippen extends Component
     public function mount(Season $season): void
     {
         $this->season = $season;
-        $this->selectedRound = $season->defaultRoundKey(tippableOnly: true);
+        $this->selectedRound = $season->defaultRoundKey(tippableOnly: ! $season->isArchived());
         $this->loadTips();
     }
 
@@ -71,6 +71,16 @@ class Tippen extends Component
 
     public function saveTips(): void
     {
+        if ($this->season->isArchived()) {
+            Flux::toast(
+                heading: 'Saison beendet',
+                text: 'Für archivierte Saisons können keine Tipps mehr abgegeben werden.',
+                variant: 'danger',
+            );
+
+            return;
+        }
+
         $userId = auth()->id();
 
         // Automatische Registrierung als Teilnehmer beim ersten Tipp
@@ -140,7 +150,9 @@ class Tippen extends Component
 
     public function render(): View
     {
-        $rounds = $this->season->availableRounds(tippableOnly: true);
+        $rounds = $this->season->isArchived()
+            ? $this->season->availableRounds()
+            : $this->season->availableRounds(tippableOnly: true);
 
         $matches = $this->selectedRound !== null
             ? TippspielMatch::query()
@@ -154,6 +166,7 @@ class Tippen extends Component
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.tippen', [
             'rounds' => $rounds,
             'matches' => $matches,
+            'isArchived' => $this->season->isArchived(),
         ]);
     }
 }

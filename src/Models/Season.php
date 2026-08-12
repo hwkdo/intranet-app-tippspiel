@@ -145,9 +145,20 @@ class Season extends Model
             ->first();
     }
 
+    public function isArchived(): bool
+    {
+        return ! $this->is_active;
+    }
+
     /** @return \Illuminate\Support\Collection<int, Season> */
     public static function active(): \Illuminate\Support\Collection
     {
         return static::where('is_active', true)->orderBy('season_year', 'desc')->get();
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Season> */
+    public static function archived(): \Illuminate\Support\Collection
+    {
+        return static::where('is_active', false)->orderByDesc('season_year')->orderBy('name')->get();
     }
 }

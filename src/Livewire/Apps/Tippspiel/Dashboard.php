@@ -49,6 +49,7 @@ class Dashboard extends Component
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.dashboard', [
             'seasonsData' => $seasonsData,
+            'hasArchivedSeasons' => Season::where('is_active', false)->exists(),
         ]);
     }
 

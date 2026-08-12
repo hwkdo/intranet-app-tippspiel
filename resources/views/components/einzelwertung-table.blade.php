@@ -2,14 +2,22 @@
     'leaderboard' => [],
     'currentUserId' => null,
     'showTips' => true,
+    'showSeasons' => false,
     'tipsColumnLabel' => 'Tipps',
     'emptyMessage' => 'Noch keine Einträge vorhanden.',
 ])
+
+@php
+    $columnCount = 3 + ($showTips ? 1 : 0) + ($showSeasons ? 1 : 0);
+@endphp
 
 <flux:table>
     <flux:table.columns>
         <flux:table.column class="w-12" align="center">#</flux:table.column>
         <flux:table.column>Teilnehmer</flux:table.column>
+        @if ($showSeasons)
+            <flux:table.column align="end" class="w-24">Saisons</flux:table.column>
+        @endif
         @if ($showTips)
             <flux:table.column align="end" class="w-20">{{ $tipsColumnLabel }}</flux:table.column>
         @endif
@@ -37,6 +45,9 @@
                         @endif
                     </div>
                 </flux:table.cell>
+                @if ($showSeasons)
+                    <flux:table.cell align="end">{{ $entry['seasons_count'] ?? '—' }}</flux:table.cell>
+                @endif
                 @if ($showTips)
                     <flux:table.cell align="end">
                         @if (isset($entry['evaluated_count']))
@@ -52,7 +63,7 @@
             </flux:table.row>
         @empty
             <flux:table.row>
-                <flux:table.cell colspan="{{ $showTips ? 4 : 3 }}" class="py-8 text-center text-zinc-500">
+                <flux:table.cell colspan="{{ $columnCount }}" class="py-8 text-center text-zinc-500">
                     {{ $emptyMessage }}
                 </flux:table.cell>
             </flux:table.row>

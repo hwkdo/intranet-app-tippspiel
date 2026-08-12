@@ -1,7 +1,21 @@
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="{{ $season->name }}"
-    subheading="Deine Tipps abgeben"
+    subheading="{{ $isArchived ? 'Archivierte Saison – Tipps nur noch einsehbar' : 'Deine Tipps abgeben' }}"
 >
+    @if ($isArchived)
+        <flux:callout variant="warning" icon="archive-box" class="mb-4">
+            <flux:callout.heading>Saison beendet</flux:callout.heading>
+            <flux:callout.text>
+                Diese Saison ist archiviert. Tipps können nicht mehr geändert werden.
+                <a href="{{ route('apps.tippspiel.archiv') }}" wire:navigate class="underline">Zum Archiv</a>
+                ·
+                <a href="{{ route('apps.tippspiel.rangliste', $season) }}" wire:navigate class="underline">Rangliste</a>
+                ·
+                <a href="{{ route('apps.tippspiel.auswertungen', $season) }}" wire:navigate class="underline">Auswertungen</a>
+            </flux:callout.text>
+        </flux:callout>
+    @endif
+
     {{-- Spieltag-Auswahl --}}
     <div class="glass-card mb-4 p-4">
         <div class="flex items-center gap-3">
@@ -12,7 +26,7 @@
                 @endforeach
             </flux:select>
 
-            @if ($selectedRound)
+            @if ($selectedRound && ! $isArchived)
                 <flux:button size="sm" variant="primary" wire:click="saveTips" wire:loading.attr="disabled">
                     <span wire:loading.remove wire:target="saveTips">Tipps speichern</span>
                     <span wire:loading wire:target="saveTips">Speichere...</span>
@@ -23,7 +37,7 @@
 
     @forelse ($matches as $match)
         @php
-            $locked = ! $match->canStillBeTipped();
+            $locked = $isArchived || ! $match->canStillBeTipped();
         @endphp
         <div class="glass-card mb-3 p-4 {{ $locked ? 'opacity-60' : '' }}">
             <div class="flex w-full flex-col gap-3 md:flex-row md:items-center">
@@ -97,7 +111,7 @@
         </div>
     @endforelse
 
-    @if ($matches->isNotEmpty())
+    @if ($matches->isNotEmpty() && ! $isArchived)
         <div class="mt-4 flex justify-end">
             <flux:button variant="primary" wire:click="saveTips" wire:loading.attr="disabled">
                 <span wire:loading.remove wire:target="saveTips">Tipps speichern</span>

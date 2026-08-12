@@ -7,6 +7,12 @@
 @php
     $defaultNavItems = [
         ['label' => 'Übersicht', 'href' => route('apps.tippspiel.index'), 'icon' => 'home', 'description' => 'Zurück zur Übersicht'],
+        [
+            'label' => 'Ewige Rangliste',
+            'href' => route('apps.tippspiel.ewige-rangliste'),
+            'icon' => 'trophy',
+            'description' => 'Saisonübergreifende Gesamtwertung',
+        ],
         ['type' => 'separator', 'label' => 'Saisons'],
     ];
 
@@ -28,6 +34,16 @@
             'href' => route('apps.tippspiel.rangliste', $season),
             'icon' => 'list-bullet',
             'description' => 'Gesamtrangliste',
+        ];
+    }
+
+    if (\Hwkdo\IntranetAppTippspiel\Models\Season::where('is_active', false)->exists()) {
+        $defaultNavItems[] = ['type' => 'separator', 'label' => 'Archiv'];
+        $defaultNavItems[] = [
+            'label' => 'Archiv',
+            'href' => route('apps.tippspiel.archiv'),
+            'icon' => 'archive-box',
+            'description' => 'Vergangene Saisons',
         ];
     }
 

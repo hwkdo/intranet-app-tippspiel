@@ -124,6 +124,21 @@
             <flux:icon name="trophy" class="mx-auto mb-3 size-12 text-zinc-300" />
             <flux:heading>Keine aktiven Saisons</flux:heading>
             <flux:text class="text-zinc-500">Es gibt derzeit keine aktiven Tippspiel-Saisons.</flux:text>
+            @if ($hasArchivedSeasons)
+                <div class="mt-4">
+                    <flux:button href="{{ route('apps.tippspiel.archiv') }}" wire:navigate>
+                        Zum Archiv
+                    </flux:button>
+                </div>
+            @endif
         </div>
     @endforelse
+
+    @if ($hasArchivedSeasons && $seasonsData->isNotEmpty())
+        <div class="mt-2 text-center">
+            <flux:button size="sm" variant="ghost" href="{{ route('apps.tippspiel.archiv') }}" wire:navigate>
+                Vergangene Saisons im Archiv →
+            </flux:button>
+        </div>
+    @endif
 </x-intranet-app-tippspiel::tippspiel-layout>

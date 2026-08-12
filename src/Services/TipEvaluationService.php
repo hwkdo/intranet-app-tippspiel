@@ -317,6 +317,119 @@ class TipEvaluationService
     }
 
     /**
+     * Saisonübergreifende Einzelwertung (Summe aller jemals erzielten Punkte).
+     *
+     * @return array<int, array{rank: int, user_id: int, user_name: string, total_points: int, tips_count: int, seasons_count: int}>
+     */
+    public function getAllTimeLeaderboard(): array
+    {
+        $tipsByUser = Tip::query()
+            ->join(
+                'intranet_app_tippspiel_participants',
+                'intranet_app_tippspiel_participants.id',
+                '=',
+                'intranet_app_tippspiel_tips.participant_id'
+            )
+            ->selectRaw('intranet_app_tippspiel_participants.user_id, COUNT(*) as tips_count')
+            ->groupBy('intranet_app_tippspiel_participants.user_id')
+            ->pluck('tips_count', 'user_id');
+
+        return Participant::query()
+            ->with('user')
+            ->select('user_id')
+            ->selectRaw('SUM(total_points) as total_points')
+            ->selectRaw('COUNT(*) as seasons_count')
+            ->groupBy('user_id')
+            ->orderByDesc('total_points')
+            ->orderBy('user_id')
+            ->get()
+            ->map(function (Participant $row) use ($tipsByUser) {
+                return [
+                    'user_id' => (int) $row->user_id,
+                    'user_name' => $row->user?->name ?? 'Unbekannt',
+                    'total_points' => (int) $row->total_points,
+                    'tips_count' => (int) ($tipsByUser[$row->user_id] ?? 0),
+                    'seasons_count' => (int) $row->seasons_count,
+                ];
+            })
+            ->sort(function (array $a, array $b) {
+                return $b['total_points'] <=> $a['total_points']
+                    ?: strcmp($a['user_name'], $b['user_name']);
+            })
+            ->values()
+            ->map(function (array $entry, int $index) {
+                $entry['rank'] = $index + 1;
+
+                return $entry;
+            })
+            ->toArray();
+    }
+
+    /**
+     * Saisonübergreifende Teamwertung.
+     * Team-Punkte = Summe aller Einzelpunkte ÷ Anzahl eindeutiger Spieler je GVP.
+     *
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int}>
+     */
+    public function getAllTimeTeamLeaderboard(): array
+    {
+        $participants = Participant::query()
+            ->with('user')
+            ->withCount('tips')
+            ->get();
+
+        /** @var Collection<int|string|null, Collection<int, Participant>> $grouped */
+        $grouped = $participants->groupBy(fn (Participant $participant) => $participant->user?->gvp_id);
+
+        $gvpIds = $grouped->keys()
+            ->filter(fn ($gvpId) => $gvpId !== null && $gvpId !== '')
+            ->map(fn ($gvpId) => (int) $gvpId)
+            ->values();
+
+        if ($gvpIds->isEmpty()) {
+            return [];
+        }
+
+        $gvpModel = TippspielModels::gvp();
+        /** @var Collection<int, Model> $gvps */
+        $gvps = $gvpModel::query()->whereIn('id', $gvpIds)->get()->keyBy('id');
+
+        return $grouped
+            ->filter(fn (Collection $group, $gvpId) => $gvpId !== null && $gvpId !== '')
+            ->map(function (Collection $group, $gvpId) use ($gvps) {
+                $playerCount = $group->pluck('user_id')->unique()->count();
+
+                if ($playerCount === 0) {
+                    return null;
+                }
+
+                $totalPoints = (int) $group->sum(fn (Participant $participant) => (int) $participant->total_points);
+                $gvp = $gvps->get((int) $gvpId);
+
+                return [
+                    'gvp_id' => (int) $gvpId,
+                    'team_name' => $this->formatGvpName($gvp),
+                    'player_count' => $playerCount,
+                    'total_points' => $totalPoints,
+                    'team_points' => $totalPoints / $playerCount,
+                    'tips_count' => (int) $group->sum(fn (Participant $participant) => (int) $participant->tips_count),
+                ];
+            })
+            ->filter()
+            ->sort(function (array $a, array $b) {
+                return $b['team_points'] <=> $a['team_points']
+                    ?: strcmp($a['team_name'], $b['team_name']);
+            })
+            ->values()
+            ->map(function (array $entry, int $index) {
+                $entry['rank'] = $index + 1;
+
+                return $entry;
+            })
+            ->toArray();
+    }
+
+    /**
      * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int, evaluated_count: int}>
      */
     public function getTeamRoundLeaderboard(Season $season, string $roundKey): array
