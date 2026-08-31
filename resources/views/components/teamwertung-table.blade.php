@@ -153,10 +153,10 @@
                                                         @endif
                                                     </span>
                                                 @endif
-                                                <span class="w-14 text-end text-zinc-500 tabular-nums dark:text-zinc-400">
+                                                <span class="w-14 text-end tabular-nums text-zinc-600 dark:text-zinc-300">
                                                     {{ $group['total_points'] }}
                                                 </span>
-                                                <span class="w-16 text-end font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                                                <span class="w-16 text-end font-semibold tabular-nums text-zinc-900 dark:text-white">
                                                     {{ number_format($group['team_points'], 2, ',', '.') }}
                                                 </span>
                                             </button>
