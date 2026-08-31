@@ -20,11 +20,14 @@ class TipEvaluationService
     /**
      * Berechnet die Punkte für einen einzelnen Tipp.
      *
-     * Punkteregeln:
+     * Punkteregeln (eine Stufe, nicht additiv):
      * - Exaktes Ergebnis:    tipHome == realHome && tipAway == realAway
      * - Richtige Differenz:  (tipHome - tipAway) == (realHome - realAway) aber nicht exakt
      * - Richtige Tendenz:    Richtung (Sieg/Unentschieden/Niederlage) stimmt, aber nicht Differenz
      * - Falsch:              0 Punkte
+     *
+     * Differenz impliziert immer Tendenz. Wenn Differenz-Punkte unter Tendenz-Punkten
+     * konfiguriert sind (z. B. Differenz = 0), greift mindestens die Tendenz-Stufe.
      */
     public function calculatePoints(
         int $tipHome,
@@ -41,13 +44,12 @@ class TipEvaluationService
 
         $tipDiff = $tipHome - $tipAway;
         $realDiff = $realHome - $realAway;
-
-        if ($tipDiff === $realDiff) {
-            return $pointsDifference;
-        }
-
         $tipTendency = $this->tendency($tipHome, $tipAway);
         $realTendency = $this->tendency($realHome, $realAway);
+
+        if ($tipDiff === $realDiff) {
+            return max($pointsDifference, $pointsTendency);
+        }
 
         if ($tipTendency === $realTendency) {
             return $pointsTendency;
@@ -57,66 +59,143 @@ class TipEvaluationService
     }
 
     /**
-     * Wertet alle unevaluierten Tips für abgeschlossene Spiele einer Saison aus.
-     * Aktualisiert danach die Gesamtpunkte aller betroffenen Teilnehmer.
+     * Wertet Tips für abgeschlossene Spiele einer Saison aus.
+     * Ohne $reevaluate nur Tipps ohne points_earned; mit $reevaluate alle Tipps neu.
+     * Bei $dryRun keine Schreibzugriffe — nur Diff-Report.
+     *
+     * @return array{
+     *     evaluated: int,
+     *     changed: int,
+     *     unchanged: int,
+     *     participant_ids: list<int>,
+     *     changes: list<array{
+     *         tip_id: int,
+     *         participant_id: int,
+     *         match_id: int,
+     *         match_label: string,
+     *         tip_score: string,
+     *         result_score: string,
+     *         old_points: int|null,
+     *         new_points: int
+     *     }>
+     * }
      */
-    public function evaluateSeason(Season $season, ?int $matchday = null): int
-    {
+    public function evaluateSeason(
+        Season $season,
+        ?int $matchday = null,
+        bool $reevaluate = false,
+        bool $dryRun = false,
+    ): array {
         $query = TippspielMatch::query()
             ->where('season_id', $season->id)
             ->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Awarded->value])
             ->whereNotNull('home_score')
-            ->whereNotNull('away_score')
-            ->whereHas('tips', fn ($q) => $q->whereNull('points_earned'));
+            ->whereNotNull('away_score');
+
+        if (! $reevaluate) {
+            $query->whereHas('tips', fn ($q) => $q->whereNull('points_earned'));
+        } else {
+            $query->whereHas('tips');
+        }
 
         if ($matchday !== null) {
             $query->where('matchday', $matchday);
         }
 
-        $matches = $query->with(['tips.participant'])->get();
-        $affected = 0;
+        $matches = $query->with(['tips'])->get();
+        $evaluated = 0;
+        $changed = 0;
+        $unchanged = 0;
         $participantIds = [];
+        $changes = [];
 
-        DB::transaction(function () use ($season, $matches, &$affected, &$participantIds) {
+        $persist = function () use (
+            $season,
+            $matches,
+            $reevaluate,
+            $dryRun,
+            &$evaluated,
+            &$changed,
+            &$unchanged,
+            &$participantIds,
+            &$changes,
+        ): void {
             foreach ($matches as $match) {
                 foreach ($match->tips as $tip) {
-                    if ($tip->points_earned !== null) {
+                    if (! $reevaluate && $tip->points_earned !== null) {
                         continue;
                     }
 
-                    $points = $this->calculatePoints(
+                    $newPoints = $this->calculatePoints(
                         tipHome: $tip->home_score_tip,
                         tipAway: $tip->away_score_tip,
-                        realHome: $match->home_score,
-                        realAway: $match->away_score,
+                        realHome: (int) $match->home_score,
+                        realAway: (int) $match->away_score,
                         pointsExact: $season->points_exact_result,
                         pointsDifference: $season->points_correct_difference,
                         pointsTendency: $season->points_correct_tendency,
                     );
 
-                    $tip->points_earned = $points;
-                    $tip->save();
-                    $affected++;
+                    $oldPoints = $tip->points_earned;
+                    $evaluated++;
+
+                    if ($oldPoints === $newPoints) {
+                        $unchanged++;
+
+                        continue;
+                    }
+
+                    $changed++;
                     $participantIds[] = $tip->participant_id;
+                    $changes[] = [
+                        'tip_id' => $tip->id,
+                        'participant_id' => $tip->participant_id,
+                        'match_id' => $match->id,
+                        'match_label' => "{$match->home_team_name} {$match->home_score}:{$match->away_score} {$match->away_team_name}",
+                        'tip_score' => "{$tip->home_score_tip}:{$tip->away_score_tip}",
+                        'result_score' => "{$match->home_score}:{$match->away_score}",
+                        'old_points' => $oldPoints,
+                        'new_points' => $newPoints,
+                    ];
+
+                    if ($dryRun) {
+                        continue;
+                    }
+
+                    $tip->points_earned = $newPoints;
+                    $tip->save();
                 }
             }
-        });
+        };
 
-        // Gesamtpunkte aller betroffenen Teilnehmer neu berechnen
-        $uniqueParticipantIds = array_unique($participantIds);
-        foreach ($uniqueParticipantIds as $participantId) {
-            $participant = $season->participants()->find($participantId);
-            $participant?->recalculateTotalPoints();
+        if ($dryRun) {
+            $persist();
+        } else {
+            DB::transaction($persist);
+
+            $uniqueParticipantIds = array_values(array_unique($participantIds));
+            foreach ($uniqueParticipantIds as $participantId) {
+                $participant = $season->participants()->find($participantId);
+                $participant?->recalculateTotalPoints();
+            }
+
+            Log::info('Tippspiel: Auswertung abgeschlossen', [
+                'season' => $season->name,
+                'matchday' => $matchday,
+                'reevaluate' => $reevaluate,
+                'tips_evaluated' => $evaluated,
+                'tips_changed' => $changed,
+                'participants_updated' => count($uniqueParticipantIds),
+            ]);
         }
 
-        Log::info('Tippspiel: Auswertung abgeschlossen', [
-            'season' => $season->name,
-            'matchday' => $matchday,
-            'tips_evaluated' => $affected,
-            'participants_updated' => count($uniqueParticipantIds),
-        ]);
-
-        return $affected;
+        return [
+            'evaluated' => $evaluated,
+            'changed' => $changed,
+            'unchanged' => $unchanged,
+            'participant_ids' => array_values(array_unique($participantIds)),
+            'changes' => $changes,
+        ];
     }
 
     /**
@@ -554,12 +633,19 @@ class TipEvaluationService
 
     public function pointsBadgeColor(int $points, Season $season): string
     {
-        return match ($points) {
-            $season->points_exact_result => 'green',
-            $season->points_correct_difference => 'blue',
-            $season->points_correct_tendency => 'yellow',
-            default => 'red',
-        };
+        if ($points > 0 && $points === $season->points_exact_result) {
+            return 'green';
+        }
+
+        if ($points > 0 && $points === $season->points_correct_difference) {
+            return 'blue';
+        }
+
+        if ($points > 0 && $points === $season->points_correct_tendency) {
+            return 'yellow';
+        }
+
+        return 'red';
     }
 
     /**
