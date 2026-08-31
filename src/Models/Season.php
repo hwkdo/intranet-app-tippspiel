@@ -134,10 +134,21 @@ class Season extends Model
             ?? $this->availableRounds($tippableOnly)->last()?->key;
     }
 
+    /**
+     * Nächstes ungetipptes Spiel der aktuellen Runde (currentRoundKey).
+     * Spiele späterer Spieltage/Runden werden ignoriert.
+     */
     public function nextUntippedMatch(int $userId): ?TippspielMatch
     {
+        $roundKey = $this->currentRoundKey();
+
+        if ($roundKey === null) {
+            return null;
+        }
+
         return $this->matches()
             ->stillTippable()
+            ->forRoundKey($roundKey)
             ->whereDoesntHave('tips', function ($q) use ($userId) {
                 $q->whereHas('participant', fn ($p) => $p->where('user_id', $userId)->where('season_id', $this->id));
             })

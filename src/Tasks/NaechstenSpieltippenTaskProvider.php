@@ -16,7 +16,7 @@ class NaechstenSpieltippenTaskProvider implements TaskProviderInterface
 {
     /**
      * Gibt für jede aktive Saison, in der der User angemeldet ist,
-     * einen TaskItem zurück, wenn das nächste Spiel noch ungetippt ist.
+     * einen TaskItem zurück, wenn auf dem aktuellen Spieltag noch ein Tipp fehlt.
      *
      * @return Collection<int, TaskItem>
      */
