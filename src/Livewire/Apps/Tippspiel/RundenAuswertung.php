@@ -224,8 +224,12 @@ class RundenAuswertung extends Component
             'tipLookup' => $tipLookup,
             'leaderboard' => $leaderboard,
             'teamLeaderboard' => $evaluationService->getTeamRoundLeaderboard($this->season, $this->roundKey),
+            'departmentLeaderboard' => $evaluationService->getDepartmentRoundLeaderboard($this->season, $this->roundKey),
             'currentUserId' => $user?->id,
             'currentUserGvpId' => $user instanceof $userModel ? $user->gvp_id : null,
+            'currentUserDepartmentGvpId' => $user instanceof $userModel
+                ? $evaluationService->resolveDepartmentGvpIdForUser($user)
+                : null,
             'evaluationService' => $evaluationService,
             'existingNews' => $existingNews,
             'isRoundComplete' => $isRoundComplete,

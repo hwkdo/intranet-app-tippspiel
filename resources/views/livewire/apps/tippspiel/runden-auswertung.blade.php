@@ -68,17 +68,30 @@
 
         <flux:tabs wire:model.live="wertung" class="mb-4">
             <flux:tab name="einzel">Einzelwertung</flux:tab>
-            <flux:tab name="team">Teamwertung</flux:tab>
+            <flux:tab name="team">Teamwertung (Gruppen/Fachbereiche)</flux:tab>
+            <flux:tab name="abteilung">Teamwertung (Abteilungen)</flux:tab>
         </flux:tabs>
 
         @if ($wertung === 'team')
             <flux:text class="mb-3 text-sm text-zinc-500">
-                Team-Punkte = Summe der Einzelpunkte ÷ Anzahl der Tippspiel-Teilnehmer je GVP-Einheit.
+                Team-Punkte = Summe der Einzelpunkte ÷ Anzahl der Tippspiel-Teilnehmer je Gruppe/Fachbereich.
             </flux:text>
             <x-intranet-app-tippspiel::teamwertung-table
                 :leaderboard="$teamLeaderboard"
                 :current-user-gvp-id="$currentUserGvpId"
+                team-column-label="Team (Gruppe/FB)"
                 empty-message="Für diese Runde liegen noch keine Team-Tipps vor."
+            />
+        @elseif ($wertung === 'abteilung')
+            <flux:text class="mb-3 text-sm text-zinc-500">
+                Team-Punkte = Summe der Einzelpunkte ÷ Anzahl der Tippspiel-Teilnehmer je Abteilung
+                (Gruppen/Fachbereiche zählen zu ihrer direkten Parent-Abteilung).
+            </flux:text>
+            <x-intranet-app-tippspiel::teamwertung-table
+                :leaderboard="$departmentLeaderboard"
+                :current-user-gvp-id="$currentUserDepartmentGvpId"
+                team-column-label="Team (Abteilung)"
+                empty-message="Für diese Runde liegen noch keine Abteilungs-Tipps vor."
             />
         @else
             <x-intranet-app-tippspiel::einzelwertung-table

@@ -35,9 +35,13 @@ class Archiv extends Component
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.archiv', [
             'leaderboard' => $evaluationService->getLeaderboard($this->season),
             'teamLeaderboard' => $evaluationService->getTeamLeaderboard($this->season),
+            'departmentLeaderboard' => $evaluationService->getDepartmentLeaderboard($this->season),
             'roundSummaries' => $evaluationService->getRoundSummaries($this->season),
             'currentUserId' => $user?->id,
             'currentUserGvpId' => $user instanceof $userModel ? $user->gvp_id : null,
+            'currentUserDepartmentGvpId' => $user instanceof $userModel
+                ? $evaluationService->resolveDepartmentGvpIdForUser($user)
+                : null,
         ]);
     }
 }

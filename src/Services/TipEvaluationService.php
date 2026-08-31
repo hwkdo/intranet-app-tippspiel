@@ -9,6 +9,7 @@ use Hwkdo\IntranetAppTippspiel\Models\Participant;
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\Tip;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
+use Hwkdo\IntranetAppTippspiel\Support\DepartmentGvpResolver;
 use Hwkdo\IntranetAppTippspiel\Support\TippspielModels;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -17,6 +18,10 @@ use Illuminate\Support\Facades\Log;
 
 class TipEvaluationService
 {
+    public function __construct(
+        private readonly DepartmentGvpResolver $departmentGvpResolver = new DepartmentGvpResolver(),
+    ) {}
+
     /**
      * Berechnet die Punkte für einen einzelnen Tipp.
      *
@@ -396,6 +401,37 @@ class TipEvaluationService
     }
 
     /**
+     * Teamwertung Abteilungen: Child-GVPs und direkte A-Zuordnung zählen zum Parent mit Kürzel „A“.
+     *
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int}>
+     */
+    public function getDepartmentLeaderboard(Season $season): array
+    {
+        $participants = $season->participants()
+            ->with('user.gvp.parent')
+            ->withCount('tips')
+            ->get();
+
+        return $this->buildTeamLeaderboard(
+            $participants,
+            fn (Participant $participant): int => $participant->total_points,
+            fn (Participant $participant): int => $participant->tips_count,
+            groupKeyResolver: fn (Participant $participant): ?int => $this->departmentGvpResolver->resolveId($participant->user?->gvp),
+        );
+    }
+
+    public function resolveDepartmentGvpIdForUser(?Model $user): ?int
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $user->loadMissing('gvp.parent');
+
+        return $this->departmentGvpResolver->resolveId($user->gvp);
+    }
+
+    /**
      * Saisonübergreifende Einzelwertung (Summe aller jemals erzielten Punkte).
      *
      * @return array<int, array{rank: int, user_id: int, user_name: string, total_points: int, tips_count: int, seasons_count: int}>
@@ -445,7 +481,7 @@ class TipEvaluationService
     }
 
     /**
-     * Saisonübergreifende Teamwertung.
+     * Saisonübergreifende Teamwertung (Gruppen/Fachbereiche).
      * Team-Punkte = Summe aller Einzelpunkte ÷ Anzahl eindeutiger Spieler je GVP.
      *
      * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int}>
@@ -457,8 +493,103 @@ class TipEvaluationService
             ->withCount('tips')
             ->get();
 
+        return $this->buildAllTimeTeamLeaderboard(
+            $participants,
+            fn (Participant $participant): ?int => $participant->user?->gvp_id !== null
+                ? (int) $participant->user->gvp_id
+                : null,
+        );
+    }
+
+    /**
+     * Saisonübergreifende Teamwertung (Abteilungen).
+     *
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int}>
+     */
+    public function getAllTimeDepartmentLeaderboard(): array
+    {
+        $participants = Participant::query()
+            ->with('user.gvp.parent')
+            ->withCount('tips')
+            ->get();
+
+        return $this->buildAllTimeTeamLeaderboard(
+            $participants,
+            fn (Participant $participant): ?int => $this->departmentGvpResolver->resolveId($participant->user?->gvp),
+        );
+    }
+
+    /**
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int, evaluated_count: int}>
+     */
+    public function getTeamRoundLeaderboard(Season $season, string $roundKey): array
+    {
+        return $this->buildRoundTeamLeaderboard($season, $roundKey);
+    }
+
+    /**
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int, evaluated_count: int}>
+     */
+    public function getDepartmentRoundLeaderboard(Season $season, string $roundKey): array
+    {
+        return $this->buildRoundTeamLeaderboard(
+            $season,
+            $roundKey,
+            fn (Participant $participant): ?int => $this->departmentGvpResolver->resolveId($participant->user?->gvp),
+            withDepartmentRelations: true,
+        );
+    }
+
+    /**
+     * @param  (callable(Participant): ?int)|null  $groupKeyResolver
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int, evaluated_count: int}>
+     */
+    private function buildRoundTeamLeaderboard(
+        Season $season,
+        string $roundKey,
+        ?callable $groupKeyResolver = null,
+        bool $withDepartmentRelations = false,
+    ): array {
+        $matchIds = TippspielMatch::query()
+            ->where('season_id', $season->id)
+            ->forRoundKey($roundKey)
+            ->pluck('id');
+
+        if ($matchIds->isEmpty()) {
+            return [];
+        }
+
+        $userRelations = $withDepartmentRelations
+            ? ['user.gvp.parent', 'tips' => fn ($query) => $query->whereIn('match_id', $matchIds)]
+            : ['user', 'tips' => fn ($query) => $query->whereIn('match_id', $matchIds)];
+
+        $participants = $season->participants()
+            ->with($userRelations)
+            ->get()
+            ->filter(function (Participant $participant) {
+                return $participant->tips->isNotEmpty();
+            });
+
+        return $this->buildTeamLeaderboard(
+            $participants,
+            function (Participant $participant): int {
+                return (int) $participant->tips->sum(fn (Tip $tip) => $tip->points_earned ?? 0);
+            },
+            fn (Participant $participant): int => $participant->tips->count(),
+            fn (Participant $participant): int => $participant->tips->whereNotNull('points_earned')->count(),
+            $groupKeyResolver,
+        );
+    }
+
+    /**
+     * @param  Collection<int, Participant>  $participants
+     * @param  callable(Participant): ?int  $groupKeyResolver
+     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int}>
+     */
+    private function buildAllTimeTeamLeaderboard(Collection $participants, callable $groupKeyResolver): array
+    {
         /** @var Collection<int|string|null, Collection<int, Participant>> $grouped */
-        $grouped = $participants->groupBy(fn (Participant $participant) => $participant->user?->gvp_id);
+        $grouped = $participants->groupBy(fn (Participant $participant) => $groupKeyResolver($participant));
 
         $gvpIds = $grouped->keys()
             ->filter(fn ($gvpId) => $gvpId !== null && $gvpId !== '')
@@ -509,44 +640,11 @@ class TipEvaluationService
     }
 
     /**
-     * @return array<int, array{rank: int, gvp_id: int, team_name: string, player_count: int, total_points: int, team_points: float, tips_count: int, evaluated_count: int}>
-     */
-    public function getTeamRoundLeaderboard(Season $season, string $roundKey): array
-    {
-        $matchIds = TippspielMatch::query()
-            ->where('season_id', $season->id)
-            ->forRoundKey($roundKey)
-            ->pluck('id');
-
-        if ($matchIds->isEmpty()) {
-            return [];
-        }
-
-        $participants = $season->participants()
-            ->with([
-                'user',
-                'tips' => fn ($query) => $query->whereIn('match_id', $matchIds),
-            ])
-            ->get()
-            ->filter(function (Participant $participant) {
-                return $participant->tips->isNotEmpty();
-            });
-
-        return $this->buildTeamLeaderboard(
-            $participants,
-            function (Participant $participant): int {
-                return (int) $participant->tips->sum(fn (Tip $tip) => $tip->points_earned ?? 0);
-            },
-            fn (Participant $participant): int => $participant->tips->count(),
-            fn (Participant $participant): int => $participant->tips->whereNotNull('points_earned')->count(),
-        );
-    }
-
-    /**
      * @param  Collection<int, Participant>  $participants
      * @param  callable(Participant): int  $pointsResolver
      * @param  callable(Participant): int  $tipsCountResolver
      * @param  (callable(Participant): int)|null  $evaluatedCountResolver
+     * @param  (callable(Participant): ?int)|null  $groupKeyResolver
      * @return array<int, array<string, mixed>>
      */
     private function buildTeamLeaderboard(
@@ -554,9 +652,15 @@ class TipEvaluationService
         callable $pointsResolver,
         callable $tipsCountResolver,
         ?callable $evaluatedCountResolver = null,
+        ?callable $groupKeyResolver = null,
     ): array {
+        $resolveGroupKey = $groupKeyResolver
+            ?? fn (Participant $participant): ?int => $participant->user?->gvp_id !== null
+                ? (int) $participant->user->gvp_id
+                : null;
+
         /** @var Collection<int|string|null, Collection<int, Participant>> $grouped */
-        $grouped = $participants->groupBy(fn (Participant $participant) => $participant->user?->gvp_id);
+        $grouped = $participants->groupBy(fn (Participant $participant) => $resolveGroupKey($participant));
 
         $gvpIds = $grouped->keys()
             ->filter(fn ($gvpId) => $gvpId !== null && $gvpId !== '')

@@ -25,8 +25,12 @@ class EwigeRangliste extends Component
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.ewige-rangliste', [
             'leaderboard' => $evaluationService->getAllTimeLeaderboard(),
             'teamLeaderboard' => $evaluationService->getAllTimeTeamLeaderboard(),
+            'departmentLeaderboard' => $evaluationService->getAllTimeDepartmentLeaderboard(),
             'currentUserId' => $user?->id,
             'currentUserGvpId' => $user instanceof $userModel ? $user->gvp_id : null,
+            'currentUserDepartmentGvpId' => $user instanceof $userModel
+                ? $evaluationService->resolveDepartmentGvpIdForUser($user)
+                : null,
         ]);
     }
 }

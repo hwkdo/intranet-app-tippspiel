@@ -33,8 +33,12 @@ class Rangliste extends Component
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.rangliste', [
             'leaderboard' => $evaluationService->getLeaderboard($this->season),
             'teamLeaderboard' => $evaluationService->getTeamLeaderboard($this->season),
+            'departmentLeaderboard' => $evaluationService->getDepartmentLeaderboard($this->season),
             'currentUserId' => $user?->id,
             'currentUserGvpId' => $user instanceof $userModel ? $user->gvp_id : null,
+            'currentUserDepartmentGvpId' => $user instanceof $userModel
+                ? $evaluationService->resolveDepartmentGvpIdForUser($user)
+                : null,
         ]);
     }
 }

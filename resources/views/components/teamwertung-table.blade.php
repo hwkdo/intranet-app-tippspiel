@@ -3,13 +3,14 @@
     'currentUserGvpId' => null,
     'showTips' => true,
     'tipsColumnLabel' => 'Tipps',
+    'teamColumnLabel' => 'Team (GVP)',
     'emptyMessage' => 'Noch keine Teams mit Teilnehmern vorhanden.',
 ])
 
 <flux:table>
     <flux:table.columns>
         <flux:table.column class="w-12" align="center">#</flux:table.column>
-        <flux:table.column>Team (GVP)</flux:table.column>
+        <flux:table.column>{{ $teamColumnLabel }}</flux:table.column>
         <flux:table.column align="end" class="w-20">Spieler</flux:table.column>
         @if ($showTips)
             <flux:table.column align="end" class="w-20">{{ $tipsColumnLabel }}</flux:table.column>
