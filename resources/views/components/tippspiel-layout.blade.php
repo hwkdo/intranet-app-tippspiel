@@ -53,7 +53,7 @@
     $defaultNavItems[] = ['type' => 'separator', 'label' => 'Admin', 'permission' => 'manage-app-tippspiel'];
     $defaultNavItems[] = ['label' => 'Admin', 'href' => route('apps.tippspiel.admin.index'), 'icon' => 'wrench-screwdriver', 'description' => 'Saisons, Einstellungen und KI', 'permission' => 'manage-app-tippspiel'];
 
-    $navItems = !empty($navItems) ? $navItems : $defaultNavItems;
+    $navItems = ! empty($navItems) ? $navItems : $defaultNavItems;
 @endphp
 
 <x-intranet-app-base::app-layout
