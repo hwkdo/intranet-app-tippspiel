@@ -18,6 +18,11 @@ class Tip extends Model
 
     protected $guarded = [];
 
+    protected static function newFactory(): TipFactory
+    {
+        return TipFactory::new();
+    }
+
     /** @return BelongsTo<Participant, $this> */
     public function participant(): BelongsTo
     {
@@ -28,6 +33,16 @@ class Tip extends Model
     public function match(): BelongsTo
     {
         return $this->belongsTo(TippspielMatch::class, 'match_id');
+    }
+
+    /**
+     * Name, den die Factory aus der Klasse TippspielMatch ableitet.
+     *
+     * @return BelongsTo<TippspielMatch, $this>
+     */
+    public function tippspielMatch(): BelongsTo
+    {
+        return $this->match();
     }
 
     public function getScoreDisplayAttribute(): string

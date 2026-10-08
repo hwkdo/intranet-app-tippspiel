@@ -20,6 +20,11 @@ class Participant extends Model
 
     protected $guarded = [];
 
+    protected static function newFactory(): ParticipantFactory
+    {
+        return ParticipantFactory::new();
+    }
+
     protected function casts(): array
     {
         return [

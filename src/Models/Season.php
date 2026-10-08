@@ -21,6 +21,11 @@ class Season extends Model
 
     protected $guarded = [];
 
+    protected static function newFactory(): SeasonFactory
+    {
+        return SeasonFactory::new();
+    }
+
     protected function casts(): array
     {
         return [

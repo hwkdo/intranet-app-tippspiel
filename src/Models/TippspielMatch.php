@@ -24,6 +24,11 @@ class TippspielMatch extends Model
 
     protected $guarded = [];
 
+    protected static function newFactory(): TippspielMatchFactory
+    {
+        return TippspielMatchFactory::new();
+    }
+
     protected function casts(): array
     {
         return [
