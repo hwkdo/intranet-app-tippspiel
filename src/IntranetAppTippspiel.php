@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppTippspiel;
 
+use Hwkdo\IntranetAppBase\Interfaces\ProvidesBackgroundActivitiesInterface;
+use Hwkdo\IntranetAppTippspiel\Background\TippspielBackgroundActivities;
 use Hwkdo\IntranetAppBase\Interfaces\IntranetAppInterface;
 use Hwkdo\IntranetAppBase\Interfaces\ProvidesDashboardWidgetsInterface;
 use Hwkdo\IntranetAppBase\Interfaces\ProvidesTasksInterface;
@@ -11,7 +13,7 @@ use Hwkdo\IntranetAppTippspiel\Dashboard\TippspielDashboardWidgetProvider;
 use Hwkdo\IntranetAppTippspiel\Tasks\NaechstenSpieltippenTaskProvider;
 use Illuminate\Support\Collection;
 
-class IntranetAppTippspiel implements IntranetAppInterface, ProvidesTasksInterface, ProvidesDashboardWidgetsInterface
+class IntranetAppTippspiel implements IntranetAppInterface, ProvidesBackgroundActivitiesInterface, ProvidesTasksInterface, ProvidesDashboardWidgetsInterface
 {
     public static function app_name(): string
     {
@@ -66,4 +68,11 @@ class IntranetAppTippspiel implements IntranetAppInterface, ProvidesTasksInterfa
             TippspielDashboardWidgetProvider::class,
         ];
     }
+
+    public static function backgroundActivities(): array
+    {
+        return TippspielBackgroundActivities::definitions();
+    }
+
+
 }

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Livewire\Volt\Volt;
+
 use Illuminate\Support\Facades\Route;
 
 
@@ -36,4 +38,9 @@ Route::middleware(['web', 'auth', 'can:see-app-tippspiel'])->group(function () {
     Route::redirect('apps/tippspiel/admin/einstellungen', '/apps/tippspiel/admin?activeTab=einstellungen')
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.einstellungen');
+});
+
+Route::middleware(['web', 'auth', 'can:manage-app-tippspiel'])->group(function (): void {
+    Volt::route('apps/tippspiel/admin/background-activities', 'apps.tippspiel.admin.background-activities')
+        ->name('apps.tippspiel.admin.background-activities');
 });

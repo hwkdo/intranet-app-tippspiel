@@ -6,11 +6,13 @@ namespace Hwkdo\IntranetAppTippspiel;
 
 use Hwkdo\IntranetAppTippspiel\Ai\GatewayTippspielNewsImagePort;
 use Hwkdo\IntranetAppTippspiel\Ai\GatewayTippspielNewsPort;
+use Hwkdo\IntranetAppTippspiel\Commands\EvaluateTipsCommand;
+use Hwkdo\IntranetAppTippspiel\Commands\GenerateMatchdayNewsCommand;
+use Hwkdo\IntranetAppTippspiel\Commands\SyncMatchesCommand;
 use Hwkdo\IntranetAppTippspiel\Contracts\FootballDataProviderInterface;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsImagePortInterface;
 use Hwkdo\IntranetAppTippspiel\Contracts\TippspielAiNewsPortInterface;
 use Hwkdo\IntranetAppTippspiel\Providers\FootballDataOrgProvider;
-use Illuminate\Console\Scheduling\Schedule;
 use Livewire\Livewire;
 use Livewire\Volt\Volt;
 use Spatie\LaravelPackageTools\Package;
@@ -36,9 +38,9 @@ class IntranetAppTippspielServiceProvider extends PackageServiceProvider
             ->hasViews()
             ->discoversMigrations()
             ->hasCommands([
-                \Hwkdo\IntranetAppTippspiel\Commands\SyncMatchesCommand::class,
-                \Hwkdo\IntranetAppTippspiel\Commands\EvaluateTipsCommand::class,
-                \Hwkdo\IntranetAppTippspiel\Commands\GenerateMatchdayNewsCommand::class,
+                SyncMatchesCommand::class,
+                EvaluateTipsCommand::class,
+                GenerateMatchdayNewsCommand::class,
             ]);
     }
 
@@ -69,8 +71,5 @@ class IntranetAppTippspielServiceProvider extends PackageServiceProvider
             Volt::mount(__DIR__.'/../resources/views/livewire');
         });
 
-        $this->app->resolving(Schedule::class, function (): void {
-            require __DIR__.'/../routes/console.php';
-        });
     }
 }

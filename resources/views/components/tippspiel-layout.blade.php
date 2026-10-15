@@ -51,7 +51,8 @@
     }
 
     $defaultNavItems[] = ['type' => 'separator', 'label' => 'Admin', 'permission' => 'manage-app-tippspiel'];
-    $defaultNavItems[] = ['label' => 'Admin', 'href' => route('apps.tippspiel.admin.index'), 'icon' => 'wrench-screwdriver', 'description' => 'Saisons, Einstellungen und KI', 'permission' => 'manage-app-tippspiel'];
+    $defaultNavItems[] = ['label' => 'Hintergrund', 'href' => route('apps.tippspiel.admin.background-activities'), 'icon' => 'clock', 'description' => 'Geplante Tasks, Jobs und Versand', 'buttonText' => 'Hintergrund öffnen', 'permission' => 'manage-app-tippspiel'],
+        ['label' => 'Admin', 'href' => route('apps.tippspiel.admin.index'), 'icon' => 'wrench-screwdriver', 'description' => 'Saisons, Einstellungen und KI', 'permission' => 'manage-app-tippspiel'];
 
     $navItems = ! empty($navItems) ? $navItems : $defaultNavItems;
 @endphp
