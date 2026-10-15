@@ -1,3 +1,5 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="{{ $season->name }}"
     subheading="{{ $roundLabel }} — Auswertung"
@@ -66,11 +68,16 @@
     <div class="glass-card mb-4 p-4">
         <flux:heading size="sm" class="mb-3">Wertung {{ $roundLabel }}</flux:heading>
 
-        <flux:tabs wire:model.live="wertung" class="mb-4">
-            <flux:tab name="einzel">Einzelwertung</flux:tab>
-            <flux:tab name="team">Teamwertung (Gruppen/Fachbereiche)</flux:tab>
-            <flux:tab name="abteilung">Teamwertung (Abteilungen)</flux:tab>
-        </flux:tabs>
+        <flux:tab.group>
+            <flux:tabs wire:model.live="wertung" class="mb-4">
+                <flux:tab name="einzel">Einzelwertung</flux:tab>
+                <flux:tab name="team">Teamwertung (Gruppen/Fachbereiche)</flux:tab>
+                <flux:tab name="abteilung">Teamwertung (Abteilungen)</flux:tab>
+            </flux:tabs>
+            <flux:tab.panel name="einzel" :selected="$wertung === 'einzel'" class="!pt-0"></flux:tab.panel>
+            <flux:tab.panel name="team" :selected="$wertung === 'team'" class="!pt-0"></flux:tab.panel>
+            <flux:tab.panel name="abteilung" :selected="$wertung === 'abteilung'" class="!pt-0"></flux:tab.panel>
+        </flux:tab.group>
 
         <div wire:key="runde-wertung-{{ $wertung }}">
             @if ($wertung === 'team')
@@ -186,3 +193,4 @@
         @endif
     </div>
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>

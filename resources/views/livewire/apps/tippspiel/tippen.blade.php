@@ -1,3 +1,5 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="{{ $season->name }}"
     subheading="{{ $isArchived ? 'Archivierte Saison – Tipps nur noch einsehbar' : 'Deine Tipps abgeben' }}"
@@ -116,3 +118,4 @@
         </div>
     @endif
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>

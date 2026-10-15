@@ -15,7 +15,7 @@ use Livewire\Component;
 #[Title('Tippspiel Admin')]
 class Index extends Component
 {
-    #[Url]
+    #[Url(as: 'tab')]
     public string $activeTab = 'uebersicht';
 
     public function render(): View

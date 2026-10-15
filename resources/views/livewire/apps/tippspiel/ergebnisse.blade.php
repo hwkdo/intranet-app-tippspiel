@@ -1,3 +1,5 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="{{ $season->name }}"
     subheading="Ergebnisse und meine Tipps"
@@ -99,3 +101,4 @@
         </div>
     @endforelse
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>

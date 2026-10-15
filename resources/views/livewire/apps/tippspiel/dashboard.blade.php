@@ -1,3 +1,5 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="Tippspiel"
     subheading="Tippe auf Bundesliga-Spiele und messe dich mit deinen Kollegen"
@@ -142,3 +144,4 @@
         </div>
     @endif
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>

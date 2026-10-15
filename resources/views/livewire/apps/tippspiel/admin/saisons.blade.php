@@ -1,3 +1,5 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="Saisons verwalten"
     subheading="Wettbewerbe importieren und aktivieren"
@@ -128,3 +130,4 @@
         </div>
     @endforelse
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>

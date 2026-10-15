@@ -1,12 +1,15 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="Tippspiel Admin"
     subheading="Verwaltung und Konfiguration"
 >
     <flux:tab.group>
-        <flux:tabs wire:model="activeTab">
+        <flux:tabs wire:model.live="activeTab">
             <flux:tab name="uebersicht" icon="home">Übersicht</flux:tab>
             <flux:tab name="ki" icon="sparkles">KI</flux:tab>
             <flux:tab name="einstellungen" icon="cog-6-tooth">Einstellungen</flux:tab>
+            <flux:tab name="hintergrund" icon="clock">Hintergrund</flux:tab>
         </flux:tabs>
 
         <flux:tab.panel name="uebersicht">
@@ -36,5 +39,13 @@
                 @livewire(\Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel\Admin\Einstellungen::class)
             </div>
         </flux:tab.panel>
+    <flux:tab.panel name="hintergrund">
+        @if ($activeTab === 'hintergrund')
+            <div class="min-h-[400px]">
+                @livewire('intranet-app-base::background-activities', ['appIdentifier' => 'tippspiel'], key('tippspiel-admin-hintergrund'))
+            </div>
+        @endif
+    </flux:tab.panel>
     </flux:tab.group>
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>

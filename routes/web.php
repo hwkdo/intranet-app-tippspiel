@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-use Livewire\Volt\Volt;
-
+use Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel\Admin\Index;
 use Illuminate\Support\Facades\Route;
-
 
 Route::middleware(['web', 'auth', 'can:see-app-tippspiel'])->group(function () {
     Route::livewire('apps/tippspiel', 'intranet-app-tippspiel::apps.tippspiel.dashboard')->name('apps.tippspiel.index');
@@ -26,8 +24,7 @@ Route::middleware(['web', 'auth', 'can:see-app-tippspiel'])->group(function () {
         ->where('roundSlug', 'md-\d+|stage-.+')
         ->name('apps.tippspiel.auswertung');
 
-
-    Route::livewire('apps/tippspiel/admin', \Hwkdo\IntranetAppTippspiel\Livewire\Apps\Tippspiel\Admin\Index::class)
+    Route::livewire('apps/tippspiel/admin', Index::class)
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.index');
 
@@ -35,12 +32,7 @@ Route::middleware(['web', 'auth', 'can:see-app-tippspiel'])->group(function () {
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.saisons');
 
-    Route::redirect('apps/tippspiel/admin/einstellungen', '/apps/tippspiel/admin?activeTab=einstellungen')
+    Route::redirect('apps/tippspiel/admin/einstellungen', '/apps/tippspiel/admin?tab=einstellungen')
         ->middleware('can:manage-app-tippspiel')
         ->name('apps.tippspiel.admin.einstellungen');
-});
-
-Route::middleware(['web', 'auth', 'can:manage-app-tippspiel'])->group(function (): void {
-    Volt::route('apps/tippspiel/admin/background-activities', 'apps.tippspiel.admin.background-activities')
-        ->name('apps.tippspiel.admin.background-activities');
 });

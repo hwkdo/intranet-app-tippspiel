@@ -1,3 +1,5 @@
+
+<div>
 <x-intranet-app-tippspiel::tippspiel-layout
     heading="{{ $season->name }}"
     subheading="Auswertungen nach Runde"
@@ -67,3 +69,4 @@
         </flux:table>
     </div>
 </x-intranet-app-tippspiel::tippspiel-layout>
+</div>
