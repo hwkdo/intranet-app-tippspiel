@@ -33,6 +33,12 @@ class KiEinstellungen extends Component
 
     public string $aiImageModelOverride = '';
 
+    public string $aiImageEditModelOverride = '';
+
+    public string $aiClassificationProviderOverride = '';
+
+    public string $aiClassificationModelOverride = '';
+
     public bool $aiNewsAutoCreateAfterMatchday = false;
 
     public bool $aiNewsAutoPublish = false;
@@ -75,6 +81,9 @@ class KiEinstellungen extends Component
         $this->aiImageModelOverride = $settings->imageModelOverride()
             ?? $settings->legacyImageModel()
             ?? '';
+        $this->aiImageEditModelOverride = $settings->imageEditModelOverride() ?? '';
+        $this->aiClassificationProviderOverride = $settings->aiClassificationProviderOverride?->value ?? '';
+        $this->aiClassificationModelOverride = $settings->classificationModelOverride() ?? '';
         $this->aiNewsAutoCreateAfterMatchday = $settings->aiNewsAutoCreateAfterMatchday;
         $this->aiNewsAutoPublish = $settings->aiNewsAutoPublish;
         $this->aiNewsPrompt = $settings->aiNewsPrompt;
@@ -84,6 +93,12 @@ class KiEinstellungen extends Component
         $this->aiNewsImagePrompt = $settings->aiNewsImagePrompt;
     }
 
+    public function updatedAiImageProviderOverride(): void
+    {
+        $this->aiImageModelOverride = '';
+        $this->aiImageEditModelOverride = '';
+    }
+
     public function save(): void
     {
         $this->validate([
@@ -91,6 +106,9 @@ class KiEinstellungen extends Component
             'aiTextModelOverride' => 'nullable|string|max:100',
             'aiImageProviderOverride' => ['nullable', 'string', Rule::enum(AiProvider::class)],
             'aiImageModelOverride' => 'nullable|string|max:100',
+            'aiImageEditModelOverride' => 'nullable|string|max:150',
+            'aiClassificationProviderOverride' => ['nullable', 'string', Rule::enum(AiProvider::class)],
+            'aiClassificationModelOverride' => 'nullable|string|max:150',
             'aiNewsAutoCreateAfterMatchday' => 'boolean',
             'aiNewsAutoPublish' => 'boolean',
             'aiNewsPrompt' => 'nullable|string|max:10000',
@@ -117,6 +135,9 @@ class KiEinstellungen extends Component
             'aiTextModelOverride' => $this->blankToNull($this->aiTextModelOverride),
             'aiImageProviderOverride' => $this->parseProviderOverride($this->aiImageProviderOverride),
             'aiImageModelOverride' => $this->blankToNull($this->aiImageModelOverride),
+            'aiImageEditModelOverride' => $this->blankToNull($this->aiImageEditModelOverride),
+            'aiClassificationProviderOverride' => $this->parseProviderOverride($this->aiClassificationProviderOverride),
+            'aiClassificationModelOverride' => $this->blankToNull($this->aiClassificationModelOverride),
         ]));
 
         TippspielSettings::persistAppSettings($settings);
@@ -231,8 +252,10 @@ class KiEinstellungen extends Component
 
         $baseTextModel = $baseAiConfig->textModel() ?? 'Provider-Standard';
         $baseImageModel = $baseAiConfig->imageModel() ?? 'Provider-Standard';
+        $baseClassificationModel = $baseAiConfig->classificationModel() ?? 'Provider-Standard';
         $effectiveText = $aiConfigResolver->resolve('tippspiel', AiCapability::Text);
         $effectiveImage = $aiConfigResolver->resolve('tippspiel', AiCapability::Image);
+        $effectiveClassification = $aiConfigResolver->resolve('tippspiel', AiCapability::Classification);
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.admin.ki-einstellungen', [
             'kategorien' => Kategorie::query()->orderBy('name')->pluck('name', 'id'),
@@ -251,8 +274,10 @@ class KiEinstellungen extends Component
             'usesCustomImagePrompt' => filled($this->aiNewsImagePrompt),
             'baseAiTextSummary' => $baseAiConfig->textProvider()->label().' / '.$baseTextModel,
             'baseAiImageSummary' => $baseAiConfig->imageProvider()->label().' / '.$baseImageModel,
+            'baseAiClassificationSummary' => $baseAiConfig->classificationProvider()->label().' / '.$baseClassificationModel,
             'effectiveAiTextSummary' => $effectiveText->provider->label().' / '.($effectiveText->model ?? 'Provider-Standard'),
             'effectiveAiImageSummary' => $effectiveImage->provider->label().' / '.($effectiveImage->model ?? 'Provider-Standard'),
+            'effectiveAiClassificationSummary' => $effectiveClassification->provider->label().' / '.($effectiveClassification->model ?? 'Provider-Standard'),
         ]);
     }
 

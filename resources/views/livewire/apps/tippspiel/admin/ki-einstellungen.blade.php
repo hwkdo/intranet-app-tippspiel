@@ -12,7 +12,8 @@
                 <flux:callout.heading>Globale KI-Standards</flux:callout.heading>
                 <flux:callout.text>
                     Text: <strong>{{ $baseAiTextSummary }}</strong><br>
-                    Bilder: <strong>{{ $baseAiImageSummary }}</strong>
+                    Bilder: <strong>{{ $baseAiImageSummary }}</strong><br>
+                    Klassifikation: <strong>{{ $baseAiClassificationSummary }}</strong>
                     — änderbar unter Manager → Base Settings.
                 </flux:callout.text>
             </flux:callout>
@@ -22,12 +23,17 @@
                 ai-text-model-override="aiTextModelOverride"
                 ai-image-provider-override="aiImageProviderOverride"
                 ai-image-model-override="aiImageModelOverride"
+                ai-image-edit-model-override="aiImageEditModelOverride"
+                :image-provider="$aiImageProviderOverride"
+                ai-classification-provider-override="aiClassificationProviderOverride"
+                ai-classification-model-override="aiClassificationModelOverride"
             />
 
             <flux:text class="mt-4 text-sm text-zinc-500">
                 Aktuell wirksam für Tippspiel-News:
                 Text <strong>{{ $effectiveAiTextSummary }}</strong>,
-                Bilder <strong>{{ $effectiveAiImageSummary }}</strong>.
+                Bilder <strong>{{ $effectiveAiImageSummary }}</strong>,
+                Klassifikation <strong>{{ $effectiveAiClassificationSummary }}</strong>.
             </flux:text>
         </div>
 
