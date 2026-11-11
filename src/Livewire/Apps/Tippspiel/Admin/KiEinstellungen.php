@@ -33,6 +33,8 @@ class KiEinstellungen extends Component
 
     public string $aiImageModelOverride = '';
 
+    public string $aiImageEditProviderOverride = '';
+
     public string $aiImageEditModelOverride = '';
 
     public string $aiClassificationProviderOverride = '';
@@ -81,6 +83,7 @@ class KiEinstellungen extends Component
         $this->aiImageModelOverride = $settings->imageModelOverride()
             ?? $settings->legacyImageModel()
             ?? '';
+        $this->aiImageEditProviderOverride = $settings->aiImageEditProviderOverride?->value ?? '';
         $this->aiImageEditModelOverride = $settings->imageEditModelOverride() ?? '';
         $this->aiClassificationProviderOverride = $settings->aiClassificationProviderOverride?->value ?? '';
         $this->aiClassificationModelOverride = $settings->classificationModelOverride() ?? '';
@@ -96,6 +99,10 @@ class KiEinstellungen extends Component
     public function updatedAiImageProviderOverride(): void
     {
         $this->aiImageModelOverride = '';
+    }
+
+    public function updatedAiImageEditProviderOverride(): void
+    {
         $this->aiImageEditModelOverride = '';
     }
 
@@ -106,6 +113,7 @@ class KiEinstellungen extends Component
             'aiTextModelOverride' => 'nullable|string|max:100',
             'aiImageProviderOverride' => ['nullable', 'string', Rule::enum(AiProvider::class)],
             'aiImageModelOverride' => 'nullable|string|max:100',
+            'aiImageEditProviderOverride' => ['nullable', 'string', Rule::enum(AiProvider::class)],
             'aiImageEditModelOverride' => 'nullable|string|max:150',
             'aiClassificationProviderOverride' => ['nullable', 'string', Rule::enum(AiProvider::class)],
             'aiClassificationModelOverride' => 'nullable|string|max:150',
@@ -135,6 +143,7 @@ class KiEinstellungen extends Component
             'aiTextModelOverride' => $this->blankToNull($this->aiTextModelOverride),
             'aiImageProviderOverride' => $this->parseProviderOverride($this->aiImageProviderOverride),
             'aiImageModelOverride' => $this->blankToNull($this->aiImageModelOverride),
+            'aiImageEditProviderOverride' => $this->parseProviderOverride($this->aiImageEditProviderOverride),
             'aiImageEditModelOverride' => $this->blankToNull($this->aiImageEditModelOverride),
             'aiClassificationProviderOverride' => $this->parseProviderOverride($this->aiClassificationProviderOverride),
             'aiClassificationModelOverride' => $this->blankToNull($this->aiClassificationModelOverride),
@@ -256,6 +265,7 @@ class KiEinstellungen extends Component
         $effectiveText = $aiConfigResolver->resolve('tippspiel', AiCapability::Text);
         $effectiveImage = $aiConfigResolver->resolve('tippspiel', AiCapability::Image);
         $effectiveClassification = $aiConfigResolver->resolve('tippspiel', AiCapability::Classification);
+        $settings = TippspielSettings::resolvedAppSettings();
 
         return view('intranet-app-tippspiel::livewire.apps.tippspiel.admin.ki-einstellungen', [
             'kategorien' => Kategorie::query()->orderBy('name')->pluck('name', 'id'),
@@ -273,10 +283,12 @@ class KiEinstellungen extends Component
             'usesCustomPrompt' => filled($this->aiNewsPrompt),
             'usesCustomImagePrompt' => filled($this->aiNewsImagePrompt),
             'baseAiTextSummary' => $baseAiConfig->textProvider()->label().' / '.$baseTextModel,
-            'baseAiImageSummary' => $baseAiConfig->imageProvider()->label().' / '.$baseImageModel,
+            'baseAiImageSummary' => 'Generate '.$baseAiConfig->imageProvider()->label().' / '.$baseImageModel
+                .', Edit '.$baseAiConfig->imageEditProvider()->label().' / '.($baseAiConfig->imageEditModel() ?? 'Provider-Standard'),
             'baseAiClassificationSummary' => $baseAiConfig->classificationProvider()->label().' / '.$baseClassificationModel,
             'effectiveAiTextSummary' => $effectiveText->provider->label().' / '.($effectiveText->model ?? 'Provider-Standard'),
-            'effectiveAiImageSummary' => $effectiveImage->provider->label().' / '.($effectiveImage->model ?? 'Provider-Standard'),
+            'effectiveAiImageSummary' => 'Generate '.$effectiveImage->provider->label().' / '.($effectiveImage->model ?? 'Provider-Standard')
+                .', Edit '.($settings->imageEditProviderOverride() ?? $baseAiConfig->imageEditProvider())->label().' / '.($aiConfigResolver->resolveImageEditModel('tippspiel') ?? 'Provider-Standard'),
             'effectiveAiClassificationSummary' => $effectiveClassification->provider->label().' / '.($effectiveClassification->model ?? 'Provider-Standard'),
         ]);
     }
