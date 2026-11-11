@@ -56,16 +56,6 @@ class IntranetAppTippspielServiceProvider extends PackageServiceProvider
             classViewPath: __DIR__.'/../resources/views/livewire',
         );
 
-        // Volt-basierte Widget-Komponenten registrieren
-        Livewire::addComponent(
-            name: 'intranet-app-tippspiel::apps.tippspiel.widgets.rangliste',
-            viewPath: __DIR__.'/../resources/views/livewire/apps/tippspiel/widgets/rangliste.blade.php'
-        );
-        Livewire::addComponent(
-            name: 'intranet-app-tippspiel::apps.tippspiel.widgets.naechste-spiele',
-            viewPath: __DIR__.'/../resources/views/livewire/apps/tippspiel/widgets/naechste-spiele.blade.php'
-        );
-
         $this->app->booted(function () {
             $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
             Volt::mount(__DIR__.'/../resources/views/livewire');

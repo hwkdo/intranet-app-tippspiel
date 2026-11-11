@@ -2,7 +2,7 @@
 
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Services\TipEvaluationService;
-use Livewire\Volt\Component;
+use Livewire\Component;
 
 new class extends Component {
     public function with(TipEvaluationService $evaluationService): array

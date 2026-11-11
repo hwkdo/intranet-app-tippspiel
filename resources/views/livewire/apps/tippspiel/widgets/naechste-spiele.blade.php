@@ -2,7 +2,7 @@
 
 use Hwkdo\IntranetAppTippspiel\Models\Season;
 use Hwkdo\IntranetAppTippspiel\Models\TippspielMatch;
-use Livewire\Volt\Component;
+use Livewire\Component;
 
 new class extends Component {
     public function with(): array
