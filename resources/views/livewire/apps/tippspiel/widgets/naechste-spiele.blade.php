@@ -23,7 +23,10 @@ new class extends Component {
     }
 }; ?>
 
-<div>
+<x-intranet-app-base::dashboard.widget-card
+    title="Tippspiel: Nächste Spiele"
+    description="Anstehende Spiele der aktiven Tippspiel-Saisons"
+>
     @if ($season)
         <div class="mb-2 flex items-center justify-between">
             <flux:text class="text-sm font-medium">{{ $season->name }}</flux:text>
@@ -45,4 +48,4 @@ new class extends Component {
     @else
         <flux:text class="text-sm text-zinc-500">Keine aktive Tippspiel-Saison.</flux:text>
     @endif
-</div>
+</x-intranet-app-base::dashboard.widget-card>
